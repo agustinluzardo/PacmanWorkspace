@@ -8,6 +8,14 @@ QtObject {
     readonly property color surfaceVariantText: "#8b919c"
     readonly property color surfaceTextHover: Qt.rgba(0.9, 0.91, 0.93, 0.08)
     readonly property color outline: "#3a3f4a"
+    readonly property bool isLightMode: false
+    readonly property color primary: "#a8c7fa"
+    readonly property color secondary: "#8fcfd1"
+    readonly property color tertiary: "#d0bcff"
+    readonly property color error: "#f2b8b5"
+    readonly property color warning: "#ff9800"
+    readonly property color info: "#2196f3"
+    readonly property color success: "#4caf50"
     readonly property real fontScale: 1.0
     readonly property real fontSizeSmall: Math.round(fontScale * 12)
     readonly property real fontSizeMedium: Math.round(fontScale * 14)

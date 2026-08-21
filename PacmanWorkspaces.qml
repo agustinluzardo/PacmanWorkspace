@@ -77,10 +77,33 @@ PluginComponent {
     }
 
     // --------------------------------------------------------------- colours --
-    readonly property color pacmanColor: "#FFD400"
-    readonly property color pelletColor: "#FFE0A3"
-    // Blinky, Pinky, Inky, Clyde.
-    readonly property var ghostPalette: ["#FF4B4B", "#FFA8D8", "#56E0F0", "#FFB03A"]
+    // "arcade"  - the 1980 cabinet's own palette
+    // "theme"   - Material You colours from DMS, for bars where pure arcade
+    //             primaries are too loud
+    readonly property string palette: root.pluginData?.palette ?? "arcade"
+    readonly property bool arcadePalette: root.palette !== "theme"
+
+    readonly property color pacmanColor: root.arcadePalette ? "#FFFF00" : Theme.primary
+
+    // Blinky, Pinky, Inky, Clyde - the cabinet's exact values, in the order they
+    // leave the ghost house.
+    readonly property var arcadeGhosts: ["#FF0000", "#FFB8FF", "#00FFFF", "#FFB852"]
+    readonly property var themeGhosts: [Theme.error, Theme.tertiary, Theme.info, Theme.warning]
+    readonly property var ghostPalette: root.arcadePalette ? root.arcadeGhosts : root.themeGhosts
+
+    // The arcade maze draws dots and energizers in the same peach; on a light bar
+    // that has almost no contrast, so it is darkened there.
+    readonly property color pelletColor: {
+        if (!root.arcadePalette)
+            return Theme.surfaceText
+        return Theme.isLightMode ? "#C4622F" : "#FFB897"
+    }
+    // In the maze every piece of food is the same colour and only the size differs,
+    // so an untouched slot is barely held back from an occupied one.
+    readonly property color dimPelletColor: root.arcadePalette ? Theme.withAlpha(root.pelletColor, 0.8) : Theme.surfaceVariantText
+
+    readonly property color ghostEyeColor: "#FFFFFF"
+    readonly property color ghostPupilColor: root.arcadePalette ? "#2121DE" : Theme.primary
 
     function ghostColorFor(info) {
         const n = root.ghostPalette.length
@@ -91,8 +114,27 @@ PluginComponent {
         return root.ghostPalette[((info.num - 1) % n + n) % n]
     }
 
-    readonly property real mouthOpenDeg: 34
-    readonly property real mouthClosedDeg: 2
+    // ---------------------------------------------------------- sprite clock --
+    // The arcade animates on a frame counter, not on smooth tweens: Pac-Man
+    // steps through three mouth frames, the ghosts' skirt alternates, and the
+    // energizers blink hard on and off. One shared timer drives all of it, so
+    // every sprite in the bar stays in step the way it does in the game - and it
+    // costs four property writes a second instead of a full per-frame animation.
+    property int spriteFrame: 0
+    // Mouth aperture per frame: wide, half, closed, half.
+    readonly property var mouthFrames: [38, 20, 0, 20]
+    readonly property real mouthRestDeg: 30
+
+    Timer {
+        interval: 130
+        repeat: true
+        running: root.animationsOn && root.visible && !(SessionService.preparingForSleep ?? false)
+        onTriggered: root.spriteFrame = (root.spriteFrame + 1) % 4
+        onRunningChanged: {
+            if (!running)
+                root.spriteFrame = 0
+        }
+    }
 
     // ------------------------------------------------------------ compositor --
     readonly property bool niriMode: CompositorService.isNiri
@@ -595,7 +637,7 @@ PluginComponent {
                 case "pellet":
                     return root.pelletColor
                 default:
-                    return cell.isOccupied ? Theme.surfaceText : Theme.surfaceVariantText
+                    return cell.isOccupied ? root.pelletColor : root.dimPelletColor
                 }
             }
 
@@ -615,7 +657,7 @@ PluginComponent {
             readonly property real cy: cell.height / 2
 
             // -- Pac-Man ---------------------------------------------------
-            property real mouthAngle: root.mouthOpenDeg
+            readonly property real mouthAngle: cell.animate ? root.mouthFrames[root.spriteFrame] : root.mouthRestDeg
             // The bounce scales the radius that feeds the path, not the item, so
             // the wedge is re-tessellated at the new size instead of a finished
             // image being stretched.
@@ -662,33 +704,6 @@ PluginComponent {
                         })
             }
 
-            SequentialAnimation {
-                id: chompAnim
-
-                running: cell.kind === "pacman" && cell.animate
-                loops: Animation.Infinite
-
-                NumberAnimation {
-                    target: cell
-                    property: "mouthAngle"
-                    to: root.mouthClosedDeg
-                    duration: 200
-                    easing.type: Easing.InOutQuad
-                }
-                NumberAnimation {
-                    target: cell
-                    property: "mouthAngle"
-                    to: root.mouthOpenDeg
-                    duration: 200
-                    easing.type: Easing.InOutQuad
-                }
-
-                onRunningChanged: {
-                    if (!running)
-                        cell.mouthAngle = root.mouthOpenDeg
-                }
-            }
-
             // -- Ghost geometry --------------------------------------------
             readonly property real gMargin: Math.max(1, root.cellSize * 0.07)
             readonly property real gR: root.cellSize / 2 - cell.gMargin
@@ -702,34 +717,11 @@ PluginComponent {
             // Ghosts watch Pac-Man.
             readonly property bool ghostLooksLeft: cell.info.num > root.focusedWorkspaceId
 
-            property real ghostBob: 0
-
-            SequentialAnimation {
-                id: bobAnim
-
-                running: cell.kind === "ghost" && cell.animate
-                loops: Animation.Infinite
-
-                NumberAnimation {
-                    target: cell
-                    property: "ghostBob"
-                    to: -Math.max(1, root.cellSize * 0.07)
-                    // Slightly different per slot so the ghosts drift out of sync.
-                    duration: 520 + (cell.index % 3) * 70
-                    easing.type: Easing.InOutSine
-                }
-                NumberAnimation {
-                    target: cell
-                    property: "ghostBob"
-                    to: 0
-                    duration: 520 + (cell.index % 3) * 70
-                    easing.type: Easing.InOutSine
-                }
-
-                onRunningChanged: {
-                    if (!running)
-                        cell.ghostBob = 0
-                }
+            // The arcade ghosts do not bob; their skirt shuffles between two
+            // frames. Alternating which set of feet hangs lower reproduces that.
+            readonly property int skirtPhase: cell.animate ? (root.spriteFrame < 2 ? 0 : 1) : 0
+            function footDepth(index) {
+                return cell.gFoot * ((index % 2) === cell.skirtPhase ? 1 : 0.4)
             }
 
             // -- Visuals ---------------------------------------------------
@@ -792,10 +784,6 @@ PluginComponent {
                 anchors.fill: parent
                 visible: cell.kind === "ghost"
 
-                transform: Translate {
-                    y: cell.ghostBob
-                }
-
                 Shape {
                     anchors.fill: parent
                     preferredRendererType: Shape.CurveRenderer
@@ -826,25 +814,25 @@ PluginComponent {
                             x: cell.cx + cell.gR - cell.gBump
                             y: cell.gBaseY
                             controlX: cell.cx + cell.gR - cell.gBump * 0.5
-                            controlY: cell.gBaseY + cell.gFoot
+                            controlY: cell.gBaseY + cell.footDepth(0)
                         }
                         PathQuad {
                             x: cell.cx + cell.gR - cell.gBump * 2
                             y: cell.gBaseY
                             controlX: cell.cx + cell.gR - cell.gBump * 1.5
-                            controlY: cell.gBaseY + cell.gFoot
+                            controlY: cell.gBaseY + cell.footDepth(1)
                         }
                         PathQuad {
                             x: cell.cx + cell.gR - cell.gBump * 3
                             y: cell.gBaseY
                             controlX: cell.cx + cell.gR - cell.gBump * 2.5
-                            controlY: cell.gBaseY + cell.gFoot
+                            controlY: cell.gBaseY + cell.footDepth(2)
                         }
                         PathQuad {
                             x: cell.cx - cell.gR
                             y: cell.gBaseY
                             controlX: cell.cx + cell.gR - cell.gBump * 3.5
-                            controlY: cell.gBaseY + cell.gFoot
+                            controlY: cell.gBaseY + cell.footDepth(3)
                         }
                         // Left flank back up to the dome.
                         PathLine {
@@ -869,14 +857,14 @@ PluginComponent {
                         width: cell.eyeR * 2
                         height: cell.eyeR * 2
                         radius: width / 2
-                        color: "#FFFFFF"
+                        color: root.ghostEyeColor
                         antialiasing: true
 
                         Rectangle {
                             width: cell.eyeR
                             height: cell.eyeR
                             radius: width / 2
-                            color: "#1A2FB0"
+                            color: root.ghostPupilColor
                             antialiasing: true
                             x: (parent.width - width) / 2 + (cell.ghostLooksLeft ? -cell.eyeR * 0.42 : cell.eyeR * 0.42)
                             y: (parent.height - height) / 2 + cell.eyeR * 0.2
@@ -899,7 +887,8 @@ PluginComponent {
                 id: pellet
 
                 anchors.centerIn: parent
-                visible: cell.kind === "pellet" || cell.kind === "dot"
+                // The maze energizers blink hard on and off rather than fading.
+                visible: (cell.kind === "dot") || (cell.kind === "pellet" && (!cell.animate || root.spriteFrame < 2))
                 width: {
                     if (cell.kind === "pellet")
                         return Math.max(6, Math.round(root.cellSize * root.urgentPelletFraction))
@@ -916,33 +905,6 @@ PluginComponent {
                         duration: Theme.shortDuration
                         easing.type: Theme.standardEasing
                     }
-                }
-            }
-
-            SequentialAnimation {
-                id: pelletBlink
-
-                running: cell.kind === "pellet" && cell.animate
-                loops: Animation.Infinite
-
-                NumberAnimation {
-                    target: pellet
-                    property: "opacity"
-                    to: 0.3
-                    duration: 340
-                    easing.type: Easing.InOutQuad
-                }
-                NumberAnimation {
-                    target: pellet
-                    property: "opacity"
-                    to: 1
-                    duration: 340
-                    easing.type: Easing.InOutQuad
-                }
-
-                onRunningChanged: {
-                    if (!running)
-                        pellet.opacity = 1
                 }
             }
 

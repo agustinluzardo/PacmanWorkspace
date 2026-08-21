@@ -6,8 +6,20 @@ Pac-Man sits on the workspace you are on, chomping and facing whichever way you
 last travelled. Ghosts mark the other workspaces, untouched ones stay as pellets,
 and a workspace that goes urgent flashes as a power pellet.
 
+It follows the 1980 cabinet fairly closely: the arcade's own palette (Pac-Man
+`#FFFF00`; Blinky, Pinky, Inky and Clyde in their real colours, with blue
+pupils; peach maze food), Pac-Man's three-frame chomp rather than a smooth
+tween, ghost skirts that shuffle between two frames instead of bobbing, and
+energizers that blink hard on and off. One shared sprite clock drives all of it,
+so every icon in the bar animates in step the way it does in the game — and it
+costs a handful of property writes a second instead of a per-frame animation.
+
 Everything is vector geometry (`QtQuick.Shapes`), so it stays sharp at any bar
-size and survives suspend/resume without going stale.
+size and survives suspend/resume without going stale. It also fits into the rest
+of the shell: sizes follow the bar's thickness and icon scale, DMS' global
+animation setting switches the sprite clock off, and a **Palette** setting swaps
+the arcade primaries for your Material You theme colours when they are too loud
+for your bar.
 
 Works on horizontal and vertical DankBars. Hyprland is the primary target; niri
 is supported through DMS' `NiriService`.
@@ -57,16 +69,22 @@ git -C ~/.config/DankMaterialShell/plugins/PacmanWorkspaces pull
   lives on. Turn it off to have every bar mirror the focused monitor. (DMS'
   own *Workspaces follow focus* setting also forces the mirrored behaviour.)
 
-**Ghosts**
+**Colours & ghosts**
 
+- **Palette** – *Arcade* uses the cabinet's own colours (and darkens the peach
+  maze food on light bars so it still reads). *Adaptive* maps Pac-Man to
+  `Theme.primary` and the four ghosts to your theme's error / tertiary / info /
+  warning colours.
 - **Ghosts appear on** – workspaces *behind you* (they chase Pac-Man, the
   default), workspaces *with windows open*, or *every other workspace*.
 - **Ghost colours** – one stable colour per workspace, or by distance behind you.
 
 **Behaviour**
 
-- **Animations** – chomping, the landing bounce, drifting ghosts and the
-  flashing power pellet. DMS' global animation setting switches these off too.
+- **Animations** – the sprite clock: the three-frame chomp, the shuffling ghost
+  skirts, the blinking energizers and the landing bounce. DMS' global animation
+  setting switches these off too, and the clock stops while the widget is hidden
+  or the machine is going to sleep.
 - **Scroll to switch** / **Reverse scroll direction**.
 
 ## Troubleshooting

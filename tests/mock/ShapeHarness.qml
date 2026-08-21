@@ -11,7 +11,7 @@ Rectangle {
     component PacCell: Item {
         id: cell
         property int cellSize: 32
-        property color tint: "#FFD400"
+        property color tint: "#FFFF00"
         property real mouthAngle: 34
         property real bounce: 1.0
         property bool facingLeft: false
@@ -52,9 +52,11 @@ Rectangle {
     component GhostCell: Item {
         id: cell
         property int cellSize: 32
-        property color tint: "#FF4B4B"
+        property color tint: "#FF0000"
         property bool ghostLooksLeft: false
         property real ghostBob: 0
+        property int skirtPhase: 0
+        function footDepth(index) { return gFoot * ((index % 2) === skirtPhase ? 1 : 0.4) }
 
         width: cellSize
         height: cellSize
@@ -99,25 +101,25 @@ Rectangle {
                         x: cell.cx + cell.gR - cell.gBump
                         y: cell.gBaseY
                         controlX: cell.cx + cell.gR - cell.gBump * 0.5
-                        controlY: cell.gBaseY + cell.gFoot
+                        controlY: cell.gBaseY + cell.footDepth(0)
                     }
                     PathQuad {
                         x: cell.cx + cell.gR - cell.gBump * 2
                         y: cell.gBaseY
                         controlX: cell.cx + cell.gR - cell.gBump * 1.5
-                        controlY: cell.gBaseY + cell.gFoot
+                        controlY: cell.gBaseY + cell.footDepth(1)
                     }
                     PathQuad {
                         x: cell.cx + cell.gR - cell.gBump * 3
                         y: cell.gBaseY
                         controlX: cell.cx + cell.gR - cell.gBump * 2.5
-                        controlY: cell.gBaseY + cell.gFoot
+                        controlY: cell.gBaseY + cell.footDepth(2)
                     }
                     PathQuad {
                         x: cell.cx - cell.gR
                         y: cell.gBaseY
                         controlX: cell.cx + cell.gR - cell.gBump * 3.5
-                        controlY: cell.gBaseY + cell.gFoot
+                        controlY: cell.gBaseY + cell.footDepth(3)
                     }
                     PathLine {
                         x: cell.cx - cell.gR
@@ -143,7 +145,7 @@ Rectangle {
                         width: cell.eyeR
                         height: cell.eyeR
                         radius: width / 2
-                        color: "#1A2FB0"
+                        color: "#2121DE"
                         antialiasing: true
                         x: (parent.width - width) / 2 + (cell.ghostLooksLeft ? -cell.eyeR * 0.42 : cell.eyeR * 0.42)
                         y: (parent.height - height) / 2 + cell.eyeR * 0.2
@@ -156,7 +158,7 @@ Rectangle {
     component DotCell: Item {
         id: cell
         property int cellSize: 32
-        property color tint: "#9aa0aa"
+        property color tint: "#FFB897"
         property bool occupied: false
         property bool pellet: false
         width: cellSize
@@ -171,7 +173,7 @@ Rectangle {
         }
     }
 
-    readonly property var ghostPalette: ["#FF4B4B", "#FFA8D8", "#56E0F0", "#FFB03A"]
+    readonly property var ghostPalette: ["#FF0000", "#FFB8FF", "#00FFFF", "#FFB852"]
 
     Column {
         anchors.centerIn: parent
@@ -198,20 +200,19 @@ Rectangle {
                 }
                 PacCell {
                     cellSize: sizeRow.modelData
-                    mouthAngle: 34
+                    mouthAngle: 38
                 }
                 PacCell {
                     cellSize: sizeRow.modelData
-                    mouthAngle: 2
+                    mouthAngle: 20
                 }
                 PacCell {
                     cellSize: sizeRow.modelData
-                    mouthAngle: 34
-                    bounce: 1.18
+                    mouthAngle: 0
                 }
                 PacCell {
                     cellSize: sizeRow.modelData
-                    mouthAngle: 34
+                    mouthAngle: 38
                     facingLeft: true
                 }
                 GhostCell {
@@ -226,7 +227,7 @@ Rectangle {
                 GhostCell {
                     cellSize: sizeRow.modelData
                     tint: win.ghostPalette[2]
-                    ghostBob: -Math.max(1, sizeRow.modelData * 0.07)
+                    skirtPhase: 1
                 }
                 GhostCell {
                     cellSize: sizeRow.modelData

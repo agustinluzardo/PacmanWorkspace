@@ -103,10 +103,27 @@ PluginSettings {
 
     StyledText {
         width: parent.width
-        text: "Ghosts"
+        text: "Colours & ghosts"
         font.pixelSize: Theme.fontSizeMedium
         font.weight: Font.Bold
         color: Theme.surfaceText
+    }
+
+    SelectionSetting {
+        settingKey: "palette"
+        label: "Palette"
+        description: "Arcade uses the 1980 cabinet's own colours. Adaptive uses your DankMaterialShell theme instead, for bars where pure arcade primaries are too loud."
+        defaultValue: "arcade"
+        options: [
+            {
+                "label": "Arcade (authentic)",
+                "value": "arcade"
+            },
+            {
+                "label": "Adaptive (follows your theme)",
+                "value": "theme"
+            }
+        ]
     }
 
     SelectionSetting {
