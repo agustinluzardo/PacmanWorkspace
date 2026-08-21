@@ -11,12 +11,32 @@ is supported through DMS' `NiriService`.
 
 ## Install
 
+If this is the standalone `pacmanplugin` repo (the plugin sits at the repo root),
+clone it straight into the plugins directory:
+
+```sh
+git clone https://github.com/agustinluzardo/pacmanplugin \
+  ~/.config/DankMaterialShell/plugins/PacmanWorkspaces
+```
+
+If you got it as a `PacmanWorkspaces/` folder inside a larger repo, copy that
+folder instead:
+
 ```sh
 cp -r PacmanWorkspaces ~/.config/DankMaterialShell/plugins/
 ```
 
-Then enable it in DMS under **Settings → Plugins**, and add it to a bar section
-in **Settings → DankBar**.
+Either way the directory that ends up under `plugins/` must be the one holding
+`plugin.json`. Then enable it in DMS under **Settings → Plugins**, and add it to
+a bar section in **Settings → DankBar**.
+
+If you already had version 1 installed, remove the old directory first — two
+directories declaring the same plugin id (`pacmanWorkspaces`) means DMS loads
+only one of them, and not necessarily the new one:
+
+```sh
+grep -rl pacmanWorkspaces ~/.config/DankMaterialShell/plugins/
+```
 
 ## Using it
 

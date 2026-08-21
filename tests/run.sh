@@ -13,7 +13,17 @@ set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(dirname "$here")"
 mock="$here/mock"
-plugin="$repo/PacmanWorkspaces"
+# Works both when the plugin lives in a PacmanWorkspaces/ subdirectory and when
+# it sits at the repo root (standalone plugin repo, cloned straight into
+# ~/.config/DankMaterialShell/plugins/).
+if [ -f "$repo/PacmanWorkspaces/plugin.json" ]; then
+    plugin="$repo/PacmanWorkspaces"
+elif [ -f "$repo/plugin.json" ]; then
+    plugin="$repo"
+else
+    echo "!! could not find plugin.json next to the tests"
+    exit 1
+fi
 build="$here/.build"
 mkdir -p "$build"
 
