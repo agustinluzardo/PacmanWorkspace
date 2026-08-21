@@ -114,6 +114,50 @@ PluginComponent {
     }
     readonly property color dimPelletColor: root.arcadePalette ? Theme.withAlpha(root.pelletColor, 0.65) : Theme.surfaceVariantText
 
+    // Classic frightened mode: walking back the way you came is Pac-Man eating an
+    // energizer, so the ghosts turn blue, then flash white just before it wears
+    // off, exactly as the cabinet does.
+    readonly property bool frightenedEnabled: root.pluginData?.frightenedGhosts ?? false
+    readonly property int frightenedMs: 5000
+    property bool frightened: false
+    property bool frightenedFlash: false
+    readonly property bool frightenedWhite: root.frightened && root.frightenedFlash && root.animationsOn && (root.spriteFrame % 2 === 0)
+    readonly property color frightenedBodyColor: root.frightenedWhite ? "#FFFFFF" : (root.arcadePalette ? "#2121DE" : Theme.info)
+    readonly property color frightenedPupilColor: root.frightenedWhite ? "#FF0000" : "#FFFFFF"
+
+    Timer {
+        id: frightenedFlashTimer
+        interval: Math.max(1000, root.frightenedMs - 2000)
+        onTriggered: root.frightenedFlash = true
+    }
+
+    Timer {
+        id: frightenedTimer
+        interval: root.frightenedMs
+        onTriggered: {
+            root.frightened = false
+            root.frightenedFlash = false
+        }
+    }
+
+    function startFrightened() {
+        if (!root.frightenedEnabled)
+            return
+        root.frightened = true
+        root.frightenedFlash = false
+        frightenedFlashTimer.restart()
+        frightenedTimer.restart()
+    }
+
+    onFrightenedEnabledChanged: {
+        if (!root.frightenedEnabled) {
+            root.frightened = false
+            root.frightenedFlash = false
+            frightenedTimer.stop()
+            frightenedFlashTimer.stop()
+        }
+    }
+
     readonly property color ghostEyeColor: "#FFFFFF"
     readonly property color ghostPupilColor: root.arcadePalette ? "#2121DE" : Theme.primary
 
@@ -132,6 +176,40 @@ PluginComponent {
     // energizers blink hard on and off. One shared timer drives all of it, so
     // every sprite in the bar stays in step the way it does in the game - and it
     // costs four property writes a second instead of a full per-frame animation.
+    // "arcade" - stepped on a frame counter, like the cabinet
+    // "smooth"  - tweened continuously at the display's refresh rate
+    readonly property string animationStyle: root.pluginData?.animationStyle ?? "arcade"
+    readonly property bool smoothAnimation: root.animationStyle === "smooth"
+
+    // Continuous 0..1 ramp that drives everything in smooth mode, so the two
+    // styles share one set of sprites and only differ in how they are driven.
+    property real smoothPhase: 0
+
+    SequentialAnimation {
+        running: root.animationsOn && root.smoothAnimation && root.visible && !(SessionService.preparingForSleep ?? false)
+        loops: Animation.Infinite
+
+        NumberAnimation {
+            target: root
+            property: "smoothPhase"
+            to: 1
+            duration: 260
+            easing.type: Easing.InOutSine
+        }
+        NumberAnimation {
+            target: root
+            property: "smoothPhase"
+            to: 0
+            duration: 260
+            easing.type: Easing.InOutSine
+        }
+
+        onRunningChanged: {
+            if (!running)
+                root.smoothPhase = 0
+        }
+    }
+
     property int spriteFrame: 0
     // Mouth aperture per frame: wide, half, closed, half.
     readonly property var mouthFrames: [38, 20, 0, 20]
@@ -140,7 +218,7 @@ PluginComponent {
     Timer {
         interval: 130
         repeat: true
-        running: root.animationsOn && root.visible && !(SessionService.preparingForSleep ?? false)
+        running: root.animationsOn && !root.smoothAnimation && root.visible && !(SessionService.preparingForSleep ?? false)
         onTriggered: root.spriteFrame = (root.spriteFrame + 1) % 4
         onRunningChanged: {
             if (!running)
@@ -383,10 +461,13 @@ PluginComponent {
     onFocusedWorkspaceIdChanged: {
         const slots = root.wsSlots
         const firstNum = slots.length > 0 ? slots[0].num : 1
+        const movedBack = root.previousFocusedId > 0 && root.focusedWorkspaceId < root.previousFocusedId
         if (root.focusedWorkspaceId <= firstNum)
             root.facingLeft = false
         else if (root.previousFocusedId > 0 && root.focusedWorkspaceId !== root.previousFocusedId)
             root.facingLeft = root.focusedWorkspaceId < root.previousFocusedId
+        if (movedBack)
+            root.startFrightened()
         root.previousFocusedId = root.focusedWorkspaceId
     }
 
@@ -648,7 +729,7 @@ PluginComponent {
                 return cell.hovered ? Theme.hoverTint(c) : c
             }
             readonly property color pacmanTint: cell.shade(root.pacmanColor)
-            readonly property color ghostTint: cell.shade(root.ghostColorFor(cell.info))
+            readonly property color ghostTint: cell.shade(root.frightened ? root.frightenedBodyColor : root.ghostColorFor(cell.info))
             readonly property color pelletTint: cell.shade(cell.kind === "dot" && !cell.isOccupied ? root.dimPelletColor : root.pelletColor)
 
             width: root.cellSize
@@ -658,7 +739,13 @@ PluginComponent {
             readonly property real cy: cell.height / 2
 
             // -- Pac-Man ---------------------------------------------------
-            readonly property real mouthAngle: cell.animate ? root.mouthFrames[root.spriteFrame] : root.mouthRestDeg
+            readonly property real mouthAngle: {
+                if (!cell.animate)
+                    return root.mouthRestDeg
+                if (root.smoothAnimation)
+                    return 2 + (root.mouthFrames[0] - 2) * root.smoothPhase
+                return root.mouthFrames[root.spriteFrame]
+            }
             // The bounce scales the radius that feeds the path, not the item, so
             // the wedge is re-tessellated at the new size instead of a finished
             // image being stretched.
@@ -722,6 +809,10 @@ PluginComponent {
             // frames. Alternating which set of feet hangs lower reproduces that.
             readonly property int skirtPhase: cell.animate ? (root.spriteFrame < 2 ? 0 : 1) : 0
             function footDepth(index) {
+                if (cell.animate && root.smoothAnimation) {
+                    const t = (index % 2) === 0 ? root.smoothPhase : 1 - root.smoothPhase
+                    return cell.gFoot * (0.4 + 0.6 * t)
+                }
                 return cell.gFoot * ((index % 2) === cell.skirtPhase ? 1 : 0.4)
             }
 
@@ -865,7 +956,7 @@ PluginComponent {
                             width: cell.eyeR
                             height: cell.eyeR
                             radius: width / 2
-                            color: root.ghostPupilColor
+                            color: root.frightened ? root.frightenedPupilColor : root.ghostPupilColor
                             antialiasing: true
                             x: (parent.width - width) / 2 + (cell.ghostLooksLeft ? -cell.eyeR * 0.42 : cell.eyeR * 0.42)
                             y: (parent.height - height) / 2 + cell.eyeR * 0.2
@@ -889,7 +980,9 @@ PluginComponent {
 
                 anchors.centerIn: parent
                 // The maze energizers blink hard on and off rather than fading.
-                visible: (cell.kind === "dot") || (cell.kind === "pellet" && (!cell.animate || root.spriteFrame < 2))
+                visible: (cell.kind === "dot") || (cell.kind === "pellet" && (!cell.animate || root.smoothAnimation || root.spriteFrame < 2))
+                // Smooth mode pulses the energizer instead of cutting it in and out.
+                opacity: (cell.kind === "pellet" && cell.animate && root.smoothAnimation) ? (0.3 + 0.7 * root.smoothPhase) : 1
                 width: {
                     if (cell.kind === "pellet")
                         return root.pelletDiameter(root.urgentPelletFraction, 6)

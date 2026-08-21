@@ -164,6 +164,13 @@ PluginSettings {
         ]
     }
 
+    ToggleSetting {
+        settingKey: "frightenedGhosts"
+        label: "Frightened ghosts"
+        description: "Going back to a lower workspace counts as eating an energizer: the ghosts turn blue for a few seconds, then flash white before they recover, like they do in the game."
+        defaultValue: false
+    }
+
     Rectangle {
         width: parent.width
         height: 1
@@ -184,6 +191,23 @@ PluginSettings {
         label: "Animations"
         description: "Chomping, the bounce when you land on a workspace, drifting ghosts and the flashing power pellet. Turning DMS' global animations off disables these too."
         defaultValue: true
+    }
+
+    SelectionSetting {
+        settingKey: "animationStyle"
+        label: "Animation style"
+        description: "Arcade steps through sprite frames on a shared clock, the way the cabinet does. Smooth tweens the same sprites continuously at your display's refresh rate."
+        defaultValue: "arcade"
+        options: [
+            {
+                "label": "Arcade (frame-stepped)",
+                "value": "arcade"
+            },
+            {
+                "label": "Smooth (60fps)",
+                "value": "smooth"
+            }
+        ]
     }
 
     ToggleSetting {
