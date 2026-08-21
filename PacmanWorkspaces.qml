@@ -48,6 +48,17 @@ PluginComponent {
     readonly property real occupiedPelletFraction: Math.min(0.52, root.pelletFraction * 1.5)
     readonly property real urgentPelletFraction: Math.min(0.70, root.pelletFraction * 2)
 
+    // anchors.centerIn puts the pellet at (cellSize - diameter) / 2, so unless
+    // the diameter has the same parity as the cell that lands on a half pixel:
+    // a 6px dot in a 21px cell centres at y=7.5 and renders visibly higher than
+    // its 9px neighbour, which centres at exactly 6. Match the parity.
+    function pelletDiameter(fraction, minimum) {
+        let d = Math.max(minimum, Math.round(root.cellSize * fraction))
+        if (((root.cellSize - d) % 2) !== 0)
+            d += 1
+        return d
+    }
+
     // DMS' global "no animations" setting collapses every duration to 0; honour it.
     readonly property bool animationsOn: root.animationsEnabled && Theme.shortDuration > 0
 
@@ -881,21 +892,14 @@ PluginComponent {
                 visible: (cell.kind === "dot") || (cell.kind === "pellet" && (!cell.animate || root.spriteFrame < 2))
                 width: {
                     if (cell.kind === "pellet")
-                        return Math.max(6, Math.round(root.cellSize * root.urgentPelletFraction))
-                    return Math.max(4, Math.round(root.cellSize * (cell.isOccupied ? root.occupiedPelletFraction : root.pelletFraction)))
+                        return root.pelletDiameter(root.urgentPelletFraction, 6)
+                    return root.pelletDiameter(cell.isOccupied ? root.occupiedPelletFraction : root.pelletFraction, 4)
                 }
                 height: width
                 radius: width / 2
                 color: cell.pelletTint
                 antialiasing: true
 
-                Behavior on width {
-                    enabled: root.animationsOn
-                    NumberAnimation {
-                        duration: Theme.shortDuration
-                        easing.type: Theme.standardEasing
-                    }
-                }
             }
 
             MouseArea {

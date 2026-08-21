@@ -205,6 +205,29 @@ Rectangle {
         // Icon size must match the original 21px at the reference 48px bar.
         harness.expect("cell size matches the original at a 48px bar", widget.cellSize, 21);
 
+        // Pellets must centre on a whole pixel at every icon size, or the small
+        // ones sit visibly higher than the large ones.
+        let offBy = [];
+        for (let px = 10; px <= 48; px++) {
+            widget.pluginData = {
+                "iconSizeOverride": px,
+                "perMonitor": false
+            };
+            const ds = [widget.pelletDiameter(widget.pelletFraction, 4), widget.pelletDiameter(widget.occupiedPelletFraction, 4), widget.pelletDiameter(widget.urgentPelletFraction, 6)];
+            for (let k = 0; k < ds.length; k++)
+                if (((widget.cellSize - ds[k]) % 2) !== 0)
+                    offBy.push(widget.cellSize + "/" + ds[k]);
+        }
+        harness.expect("pellets centre on a whole pixel at every size", offBy.length, 0);
+        if (offBy.length > 0)
+            console.log("        off-centre at cell/diameter: " + offBy.join(" "));
+        widget.pluginData = {
+            "workspaceCount": 5,
+            "maxSlots": 10,
+            "ghostMode": "behind",
+            "perMonitor": false
+        };
+
         // Resume from sleep asks for a full compositor refresh.
         const before = Hyprland.refreshWorkspacesCalls;
         SessionService.sessionResumed();
