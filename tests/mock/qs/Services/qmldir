@@ -1,0 +1,5 @@
+module qs.Services
+singleton CompositorService 1.0 CompositorService.qml
+singleton NiriService 1.0 NiriService.qml
+singleton HyprlandService 1.0 HyprlandService.qml
+singleton SessionService 1.0 SessionService.qml

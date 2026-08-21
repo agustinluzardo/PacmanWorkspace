@@ -1,0 +1,3 @@
+tests/.build/
+tests/mock/PacmanWorkspacesUT.qml
+tests/mock/PacmanWorkspacesSettingsUT.qml
