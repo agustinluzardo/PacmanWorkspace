@@ -151,6 +151,47 @@ PluginComponent {
         }
     }
 
+    // What a slot renders as. Lives here rather than in the delegate so the root
+    // can also tell whether any ghost is on screen at all.
+    function kindFor(info) {
+        if (info.focused)
+            return "pacman"
+        if (info.urgent)
+            return "pellet"
+        switch (root.ghostMode) {
+        case "all":
+            return "ghost"
+        case "occupied":
+            return info.occupied ? "ghost" : "dot"
+        default:
+            return info.behind ? "ghost" : "dot"
+        }
+    }
+
+    readonly property int visibleGhostCount: {
+        const s = root.wsSlots ?? []
+        let n = 0
+        for (let i = 0; i < s.length; i++)
+            if (root.kindFor(s[i]) === "ghost")
+                n++
+        return n
+    }
+
+    // With no ghost on screen there is nothing to frighten, and letting the
+    // effect burn down invisibly means the next ghost you walk back towards
+    // shows up already blue and part-spent. End it instead.
+    onVisibleGhostCountChanged: {
+        if (root.visibleGhostCount === 0)
+            root.clearFrightened()
+    }
+
+    function clearFrightened() {
+        root.frightened = false
+        root.frightenedFlash = false
+        frightenedTimer.stop()
+        frightenedFlashTimer.stop()
+    }
+
     function startFrightened() {
         if (!root.frightenedEnabled)
             return
@@ -161,12 +202,8 @@ PluginComponent {
     }
 
     onFrightenedEnabledChanged: {
-        if (!root.frightenedEnabled) {
-            root.frightened = false
-            root.frightenedFlash = false
-            frightenedTimer.stop()
-            frightenedFlashTimer.stop()
-        }
+        if (!root.frightenedEnabled)
+            root.clearFrightened()
     }
 
     readonly property color ghostEyeColor: "#FFFFFF"
@@ -473,7 +510,7 @@ PluginComponent {
         })
 
     function slotAt(i) {
-        const s = root.wsSlots
+        const s = root.wsSlots ?? []
         return (i >= 0 && i < s.length) ? s[i] : root.fallbackSlot
     }
 
@@ -484,7 +521,7 @@ PluginComponent {
     property bool facingLeft: false
 
     onFocusedWorkspaceIdChanged: {
-        const slots = root.wsSlots
+        const slots = root.wsSlots ?? []
         const firstNum = slots.length > 0 ? slots[0].num : 1
         const movedBack = root.previousFocusedId > 0 && root.focusedWorkspaceId < root.previousFocusedId
         if (root.focusedWorkspaceId <= firstNum)
@@ -731,20 +768,7 @@ PluginComponent {
             // keeps the hidden strip from animating in the background.
             readonly property bool animate: root.animationsOn && cell.visible
 
-            readonly property string kind: {
-                if (cell.isFocused)
-                    return "pacman"
-                if (cell.isUrgent)
-                    return "pellet"
-                switch (root.ghostMode) {
-                case "all":
-                    return "ghost"
-                case "occupied":
-                    return cell.isOccupied ? "ghost" : "dot"
-                default:
-                    return cell.info.behind ? "ghost" : "dot"
-                }
-            }
+            readonly property string kind: root.kindFor(cell.info)
 
             // Each sprite carries its own colour. A single shared tint with a
             // ColorAnimation on it cross-faded through the ghost's colour when a

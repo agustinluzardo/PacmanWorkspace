@@ -94,8 +94,37 @@ Rectangle {
         {
             "at": 6800,
             "run": () => {
-                harness.setFocus([1, 2, 3], 1); // back again
+                // 3 -> 2, so a ghost is left on slot 1 to actually be frightened.
+                harness.setFocus([1, 2, 3], 2);
                 harness.expect("t=6.8  re-triggers on a new backwards move", widget.frightened, true);
+            }
+        },
+        // Walking back to the first workspace leaves no ghost on screen, so the
+        // effect must end there rather than burning down invisibly and greeting
+        // the next ghost already blue.
+        {
+            "at": 7400,
+            "run": () => {
+                harness.setFocus([1, 2, 3], 3);
+                harness.setFocus([1, 2, 3], 2); // back -> a ghost on slot 1 is frightened
+                harness.expect("t=7.4  armed with a ghost on screen", widget.frightened, true);
+                harness.expect("t=7.4  one ghost visible", widget.visibleGhostCount, 1);
+            }
+        },
+        {
+            "at": 7600,
+            "run": () => {
+                harness.setFocus([1, 2, 3], 1); // back again -> nothing behind you
+                harness.expect("t=7.6  no ghosts left on screen", widget.visibleGhostCount, 0);
+                harness.expect("t=7.6  effect ends with nothing to frighten", widget.frightened, false);
+            }
+        },
+        {
+            "at": 7800,
+            "run": () => {
+                harness.setFocus([1, 2, 3], 2); // forward again
+                harness.expect("t=7.8  the ghost comes back unfrightened", widget.frightened, false);
+                harness.expect("t=7.8  and it is visible again", widget.visibleGhostCount, 1);
             }
         },
         // A refresh can leave the compositor state momentarily unreadable. The

@@ -85,7 +85,9 @@ git -C ~/.config/DankMaterialShell/plugins/PacmanWorkspaces pull
   *Both* does the two together.
 - **Frightened ghosts** – off by default. Going back to a lower workspace counts
   as eating an energizer, so the ghosts turn blue for five seconds and flash
-  white in the last two before recovering.
+  white in the last two before recovering. If a move leaves no ghost on screen
+  at all, the effect ends there rather than burning down invisibly and greeting
+  the next ghost already blue.
 
 **Behaviour**
 
