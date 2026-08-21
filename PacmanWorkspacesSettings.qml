@@ -59,7 +59,7 @@ PluginSettings {
 
     SliderSetting {
         settingKey: "iconSizeOverride"
-        label: "Icon size"
+        label: "Icon size (0 = follow the bar)"
         description: "0 follows the bar's own icon size, which is usually what you want. Anything else pins the icons to that many pixels."
         defaultValue: 0
         minimum: 0
@@ -69,7 +69,7 @@ PluginSettings {
 
     SliderSetting {
         settingKey: "spacingOverride"
-        label: "Spacing"
+        label: "Spacing (0 = automatic)"
         description: "0 derives the gap between icons from their size."
         defaultValue: 0
         minimum: 0
