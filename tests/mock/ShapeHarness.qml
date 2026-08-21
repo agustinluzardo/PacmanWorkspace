@@ -158,14 +158,14 @@ Rectangle {
     component DotCell: Item {
         id: cell
         property int cellSize: 32
-        property color tint: "#FFB897"
+        property color tint: "#FFFFFF"
         property bool occupied: false
         property bool pellet: false
         width: cellSize
         height: cellSize
         Rectangle {
             anchors.centerIn: parent
-            width: cell.pellet ? Math.max(6, Math.round(cell.cellSize * 0.646)) : Math.max(4, Math.round(cell.cellSize * (cell.occupied ? 0.513 : 0.38)))
+            width: cell.pellet ? Math.max(6, Math.round(cell.cellSize * 0.6)) : Math.max(4, Math.round(cell.cellSize * (cell.occupied ? 0.45 : 0.30)))
             height: width
             radius: width / 2
             color: cell.tint

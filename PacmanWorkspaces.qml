@@ -43,10 +43,10 @@ PluginComponent {
     // Diameter of an empty slot's pellet, as a percentage of the icon size. An
     // untouched-but-reachable workspace reads as a power pellet rather than a
     // speck; occupied and urgent slots scale up from it and stay distinguishable.
-    readonly property int pelletSizePercent: Math.max(10, Math.min(60, root.pluginData?.pelletSize ?? 38))
+    readonly property int pelletSizePercent: Math.max(10, Math.min(60, root.pluginData?.pelletSize ?? 30))
     readonly property real pelletFraction: root.pelletSizePercent / 100
-    readonly property real occupiedPelletFraction: Math.min(0.58, root.pelletFraction * 1.35)
-    readonly property real urgentPelletFraction: Math.min(0.72, root.pelletFraction * 1.7)
+    readonly property real occupiedPelletFraction: Math.min(0.52, root.pelletFraction * 1.5)
+    readonly property real urgentPelletFraction: Math.min(0.70, root.pelletFraction * 2)
 
     // DMS' global "no animations" setting collapses every duration to 0; honour it.
     readonly property bool animationsOn: root.animationsEnabled && Theme.shortDuration > 0
@@ -93,14 +93,15 @@ PluginComponent {
 
     // The arcade maze draws dots and energizers in the same peach; on a light bar
     // that has almost no contrast, so it is darkened there.
+    // On the cabinet's CRT the maze food reads as white, not as the peach the
+    // sprite sheet stores - which on a dark bar just looked brown. Size, not
+    // colour, is what separates an occupied workspace from an untouched one.
     readonly property color pelletColor: {
         if (!root.arcadePalette)
             return Theme.surfaceText
-        return Theme.isLightMode ? "#C4622F" : "#FFB897"
+        return Theme.isLightMode ? "#33270F" : "#FFFFFF"
     }
-    // In the maze every piece of food is the same colour and only the size differs,
-    // so an untouched slot is barely held back from an occupied one.
-    readonly property color dimPelletColor: root.arcadePalette ? Theme.withAlpha(root.pelletColor, 0.8) : Theme.surfaceVariantText
+    readonly property color dimPelletColor: root.arcadePalette ? Theme.withAlpha(root.pelletColor, 0.65) : Theme.surfaceVariantText
 
     readonly property color ghostEyeColor: "#FFFFFF"
     readonly property color ghostPupilColor: root.arcadePalette ? "#2121DE" : Theme.primary
@@ -628,27 +629,16 @@ PluginComponent {
                 }
             }
 
-            property color tint: {
-                switch (cell.kind) {
-                case "pacman":
-                    return root.pacmanColor
-                case "ghost":
-                    return root.ghostColorFor(cell.info)
-                case "pellet":
-                    return root.pelletColor
-                default:
-                    return cell.isOccupied ? root.pelletColor : root.dimPelletColor
-                }
+            // Each sprite carries its own colour. A single shared tint with a
+            // ColorAnimation on it cross-faded through the ghost's colour when a
+            // slot turned into Pac-Man, so clicking a ghost painted a blue or red
+            // Pac-Man for a moment before it settled on yellow.
+            function shade(c) {
+                return cell.hovered ? Theme.hoverTint(c) : c
             }
-
-            Behavior on tint {
-                enabled: root.animationsOn
-                ColorAnimation {
-                    duration: Theme.shortDuration
-                }
-            }
-
-            readonly property color renderTint: cell.hovered ? Theme.hoverTint(cell.tint) : cell.tint
+            readonly property color pacmanTint: cell.shade(root.pacmanColor)
+            readonly property color ghostTint: cell.shade(root.ghostColorFor(cell.info))
+            readonly property color pelletTint: cell.shade(cell.kind === "dot" && !cell.isOccupied ? root.dimPelletColor : root.pelletColor)
 
             width: root.cellSize
             height: root.cellSize
@@ -759,7 +749,7 @@ PluginComponent {
                 }
 
                 ShapePath {
-                    fillColor: cell.renderTint
+                    fillColor: cell.pacmanTint
                     strokeColor: "transparent"
                     startX: cell.cx
                     startY: cell.cy
@@ -789,7 +779,7 @@ PluginComponent {
                     preferredRendererType: Shape.CurveRenderer
 
                     ShapePath {
-                        fillColor: cell.renderTint
+                        fillColor: cell.ghostTint
                         strokeColor: "transparent"
                         startX: cell.cx - cell.gR
                         startY: cell.gDomeY
@@ -896,7 +886,7 @@ PluginComponent {
                 }
                 height: width
                 radius: width / 2
-                color: cell.renderTint
+                color: cell.pelletTint
                 antialiasing: true
 
                 Behavior on width {

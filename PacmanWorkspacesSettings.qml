@@ -80,8 +80,8 @@ PluginSettings {
     SliderSetting {
         settingKey: "pelletSize"
         label: "Pellet size"
-        description: "How big an untouched workspace's pellet is, as a percentage of the icon size. Workspaces with windows open, and urgent ones, scale up from this."
-        defaultValue: 38
+        description: "How big an untouched workspace's pellet is, as a percentage of the icon size. A workspace with windows open is 1.5x this, and an urgent one 2x."
+        defaultValue: 30
         minimum: 10
         maximum: 60
         unit: "%"
