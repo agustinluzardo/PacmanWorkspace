@@ -6,36 +6,29 @@ Pac-Man sits on the workspace you are on, chomping and facing whichever way you
 last travelled. Ghosts mark the other workspaces, untouched ones stay as pellets,
 and a workspace that goes urgent flashes as a power pellet.
 
+Everything is vector geometry (`QtQuick.Shapes`), so it stays sharp at any bar
+size and survives suspend/resume without going stale.
+
 Works on horizontal and vertical DankBars. Hyprland is the primary target; niri
 is supported through DMS' `NiriService`.
 
 ## Install
 
-If this is the standalone `pacmanplugin` repo (the plugin sits at the repo root),
-clone it straight into the plugins directory:
+This repo *is* the plugin, so clone it straight into the DMS plugins directory:
 
 ```sh
-git clone https://github.com/agustinluzardo/pacmanplugin \
+git clone https://github.com/agustinluzardo/PacmanWorkspace \
   ~/.config/DankMaterialShell/plugins/PacmanWorkspaces
 ```
 
-If you got it as a `PacmanWorkspaces/` folder inside a larger repo, copy that
-folder instead:
+Then restart the shell (see [Troubleshooting](#troubleshooting) — a plain
+**Scan** is often not enough), enable it under **Settings → Plugins**, and add it
+to a bar section in **Settings → DankBar**.
+
+To update later:
 
 ```sh
-cp -r PacmanWorkspaces ~/.config/DankMaterialShell/plugins/
-```
-
-Either way the directory that ends up under `plugins/` must be the one holding
-`plugin.json`. Then enable it in DMS under **Settings → Plugins**, and add it to
-a bar section in **Settings → DankBar**.
-
-If you already had version 1 installed, remove the old directory first — two
-directories declaring the same plugin id (`pacmanWorkspaces`) means DMS loads
-only one of them, and not necessarily the new one:
-
-```sh
-grep -rl pacmanWorkspaces ~/.config/DankMaterialShell/plugins/
+git -C ~/.config/DankMaterialShell/plugins/PacmanWorkspaces pull
 ```
 
 ## Using it
@@ -72,6 +65,75 @@ grep -rl pacmanWorkspaces ~/.config/DankMaterialShell/plugins/
 - **Animations** – chomping, the landing bounce, drifting ghosts and the
   flashing power pellet. DMS' global animation setting switches these off too.
 - **Scroll to switch** / **Reverse scroll direction**.
+
+## Troubleshooting
+
+**The plugin does not show up in Settings → Plugins, even after pressing Scan.**
+
+Two things cause this, and the first one is not obvious.
+
+*DMS caches manifest paths.* `PluginService.resyncAll()` only reads a
+`plugin.json` whose path it does not already know:
+
+```js
+const prev = knownManifests[key];
+if (!prev) loadPluginManifestFile(...);
+```
+
+So once a path has been seen — including one rejected earlier and cached as
+`bad` — pressing **Scan** will never re-read it. That cache lives in memory
+only, so restarting the shell clears it:
+
+```sh
+dms kill && dms run     # or: systemctl --user restart dms
+```
+
+*The directory layout is wrong.* DMS scans exactly one level deep: it lists the
+directories inside `plugins/` and looks for `<dir>/plugin.json`. This is what it
+has to look like:
+
+```
+~/.config/DankMaterialShell/plugins/PacmanWorkspaces/plugin.json                    ✓
+~/.config/DankMaterialShell/plugins/PacmanWorkspaces/PacmanWorkspaces/plugin.json   ✗ nested too deep
+```
+
+To check what DMS actually sees:
+
+```sh
+PL="${XDG_CONFIG_HOME:-$HOME/.config}/DankMaterialShell/plugins"
+for d in "$PL"/*/; do
+  [ -f "$d/plugin.json" ] && echo "OK   $(basename "$d")" || echo "MISS $(basename "$d")"
+done
+```
+
+**Two copies installed.** Two directories declaring the same plugin id
+(`pacmanWorkspaces`) means DMS loads only one of them, and not necessarily the
+newer one. Remove the stale directory:
+
+```sh
+find "${XDG_CONFIG_HOME:-$HOME/.config}/DankMaterialShell/plugins" \
+  -name plugin.json -exec grep -l pacmanWorkspaces {} +
+```
+
+**Still nothing.** The shell log names the reason:
+
+```sh
+dms logs 2>&1 | grep -i "plugin\|manifest" | tail -30
+```
+
+## Development
+
+`tests/` holds an offscreen harness that runs the real QML against mocked
+Quickshell and DMS modules — no compositor, no DMS install, no GPU:
+
+```sh
+./tests/run.sh
+```
+
+It covers 16 slot-range scenarios, a delegate-churn regression guard, shape
+rendering, settings construction, and 16 integration checks. See
+[`tests/README.md`](tests/README.md). The `tests/` directory is never scanned by
+DMS, so it is harmless to leave in place after installing.
 
 ## Notes on the 2.0 rewrite
 
