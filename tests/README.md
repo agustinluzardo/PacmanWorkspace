@@ -37,6 +37,7 @@ grabs the result to a PNG and reports any QML errors.
 | `DelegateTest` | The regression guard: 20 workspace switches must not destroy or recreate a single delegate. Also pins down that a *slot count* change does regenerate the strip, which is expected and harmless with Shapes. |
 | `ShapeHarness` | Renders Pac-Man (open, closed, bounced, flipped), all four ghosts, dots and the power pellet at 21 / 32 / 64 px so the vector geometry can be eyeballed. |
 | `SettingsTest` | Constructs the real settings page against the mocked setting components, catching any property that does not exist. |
+| `FrightenedTest` | The frightened-mode lifecycle in real time: it arms on a backwards move, flashes near the end, expires on schedule, does not arm going forward, re-arms on a new backwards move, and - the regression that mattered - is not armed by a momentary blip in compositor state. |
 | `IntegrationTest` | Drives the **real** `PacmanWorkspaces.qml` through the reported scenarios: moving to workspaces 3, 4, 5 and 7; occupancy; urgent workspaces; ghost modes; special and named workspaces; clicking; scrolling; resume-from-sleep refresh; a deliberately *dropped* compositor event that the watchdog has to repair; and the vertical bar pill. |
 
 Rendered PNGs are written to `tests/.build/` for inspection.

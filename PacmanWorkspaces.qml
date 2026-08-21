@@ -47,7 +47,10 @@ PluginComponent {
     readonly property int spacingOverride: Math.max(0, Math.min(24, root.pluginData?.spacingOverride ?? 6))
     // "arcade" - the sprite's skirt shuffles between two frames, as on the cabinet
     // "float"  - the ghosts drift up and down instead
+    // "both"   - drifting, with the skirt still shuffling
     readonly property string ghostMotion: root.pluginData?.ghostMotion ?? "arcade"
+    readonly property bool ghostSkirtMoves: root.ghostMotion === "arcade" || root.ghostMotion === "both"
+    readonly property bool ghostFloats: root.ghostMotion === "float" || root.ghostMotion === "both"
     // Diameter of an empty slot's pellet, as a percentage of the icon size. An
     // untouched-but-reachable workspace reads as a power pellet rather than a
     // speck; occupied and urgent slots scale up from it and stay distinguishable.
@@ -252,7 +255,12 @@ PluginComponent {
         root.revision = root.revision + 1
     }
 
-    readonly property int focusedWorkspaceId: {
+    // 0 means "the compositor state is not readable right now". Snapping to 1 in
+    // that case made a momentary blip - a refreshWorkspaces() from the watchdog,
+    // for instance - look like a walk back to the first workspace, which turned
+    // the ghosts blue every few seconds and kept re-arming the effect before it
+    // could expire.
+    readonly property int resolvedFocusId: {
         root.revision
 
         if (root.niriMode) {
@@ -265,7 +273,7 @@ PluginComponent {
                 if (match)
                     return (w.idx ?? 0) + 1
             }
-            return 1
+            return 0
         }
 
         if (!root.followFocus) {
@@ -281,8 +289,17 @@ PluginComponent {
         }
 
         const id = Hyprland.focusedWorkspace?.id
-        return (id !== undefined && id > 0) ? id : 1
+        return (id !== undefined && id > 0) ? id : 0
     }
+
+    property int lastKnownFocusId: 1
+
+    onResolvedFocusIdChanged: {
+        if (root.resolvedFocusId > 0)
+            root.lastKnownFocusId = root.resolvedFocusId
+    }
+
+    readonly property int focusedWorkspaceId: root.resolvedFocusId > 0 ? root.resolvedFocusId : root.lastKnownFocusId
 
     // Normalised workspace records, so the slot maths below is compositor
     // agnostic: `num` is the number shown in the bar, `key` is what the
@@ -815,13 +832,13 @@ PluginComponent {
 
             // The arcade ghosts do not bob; their skirt shuffles between two
             // frames. Alternating which set of feet hangs lower reproduces that.
-            readonly property bool skirtMoves: cell.animate && root.ghostMotion === "arcade"
+            readonly property bool skirtMoves: cell.animate && root.ghostSkirtMoves
             readonly property int skirtPhase: cell.skirtMoves ? (root.spriteFrame < 2 ? 0 : 1) : 0
 
             // Drifting ghosts, for anyone who prefers them to the arcade shuffle.
             // Neighbouring slots move in opposite phase so the row is not in lockstep.
             readonly property real ghostBob: {
-                if (!cell.animate || root.ghostMotion !== "float")
+                if (!cell.animate || !root.ghostFloats)
                     return 0
                 const t = root.smoothAnimation ? root.smoothPhase : (root.spriteFrame < 2 ? 0 : 1)
                 const swing = (cell.index % 2 === 0) ? t : 1 - t

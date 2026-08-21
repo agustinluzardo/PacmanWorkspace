@@ -193,6 +193,10 @@ PluginSettings {
             {
                 "label": "Float (drifting)",
                 "value": "float"
+            },
+            {
+                "label": "Both (drifting + shuffling)",
+                "value": "both"
             }
         ]
     }

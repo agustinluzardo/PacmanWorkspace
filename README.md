@@ -81,7 +81,8 @@ git -C ~/.config/DankMaterialShell/plugins/PacmanWorkspaces pull
   default), workspaces *with windows open*, or *every other workspace*.
 - **Ghost colours** – one stable colour per workspace, or by distance behind you.
 - **Ghost motion** – *Arcade* shuffles the sprite's skirt between two frames the
-  way the cabinet animates them, or *Float* drifts the whole ghost up and down.
+  way the cabinet animates them, *Float* drifts the whole ghost up and down, or
+  *Both* does the two together.
 - **Frightened ghosts** – off by default. Going back to a lower workspace counts
   as eating an energizer, so the ghosts turn blue for five seconds and flash
   white in the last two before recovering.
