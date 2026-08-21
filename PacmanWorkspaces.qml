@@ -38,8 +38,16 @@ PluginComponent {
     readonly property bool animationsEnabled: root.pluginData?.animations ?? true
     readonly property bool scrollEnabled: root.pluginData?.scrollToSwitch ?? true
     readonly property bool scrollReversed: root.pluginData?.scrollReversed ?? false
-    readonly property int iconSizeOverride: Math.max(0, Math.min(48, root.pluginData?.iconSizeOverride ?? 0))
-    readonly property int spacingOverride: Math.max(0, Math.min(24, root.pluginData?.spacingOverride ?? 0))
+    // Sizing is either derived from the bar or pinned to an exact value. A slider
+    // parked at 0 meaning "derive it" read as switched off, so the choice is an
+    // explicit flag and the slider always shows a real pixel size.
+    readonly property bool autoIconSize: root.pluginData?.autoIconSize ?? true
+    readonly property int iconSizeOverride: Math.max(10, Math.min(48, root.pluginData?.iconSizeOverride ?? 21))
+    readonly property bool autoSpacing: root.pluginData?.autoSpacing ?? true
+    readonly property int spacingOverride: Math.max(0, Math.min(24, root.pluginData?.spacingOverride ?? 6))
+    // "arcade" - the sprite's skirt shuffles between two frames, as on the cabinet
+    // "float"  - the ghosts drift up and down instead
+    readonly property string ghostMotion: root.pluginData?.ghostMotion ?? "arcade"
     // Diameter of an empty slot's pellet, as a percentage of the icon size. An
     // untouched-but-reachable workspace reads as a power pellet rather than a
     // speck; occupied and urgent slots scale up from it and stay distinguishable.
@@ -76,14 +84,14 @@ PluginComponent {
     // fractional scaling.
     readonly property real referenceCellSize: 21
     readonly property int cellSize: {
-        if (root.iconSizeOverride > 0)
+        if (!root.autoIconSize)
             return Math.max(10, Math.round(Theme.snap(root.iconSizeOverride, root.dpr)))
         const scale = root.barConfig?.iconScale ?? 1
         const base = (root.barThickness / 48) * root.referenceCellSize * scale
         return Math.max(10, Math.round(Theme.snap(base, root.dpr)))
     }
     readonly property real cellSpacing: {
-        const base = root.spacingOverride > 0 ? root.spacingOverride : Math.max(3, Math.round(root.cellSize * 0.3))
+        const base = root.autoSpacing ? Math.max(3, Math.round(root.cellSize * 0.3)) : root.spacingOverride
         return Theme.snap(base, root.dpr)
     }
 
@@ -807,12 +815,26 @@ PluginComponent {
 
             // The arcade ghosts do not bob; their skirt shuffles between two
             // frames. Alternating which set of feet hangs lower reproduces that.
-            readonly property int skirtPhase: cell.animate ? (root.spriteFrame < 2 ? 0 : 1) : 0
+            readonly property bool skirtMoves: cell.animate && root.ghostMotion === "arcade"
+            readonly property int skirtPhase: cell.skirtMoves ? (root.spriteFrame < 2 ? 0 : 1) : 0
+
+            // Drifting ghosts, for anyone who prefers them to the arcade shuffle.
+            // Neighbouring slots move in opposite phase so the row is not in lockstep.
+            readonly property real ghostBob: {
+                if (!cell.animate || root.ghostMotion !== "float")
+                    return 0
+                const t = root.smoothAnimation ? root.smoothPhase : (root.spriteFrame < 2 ? 0 : 1)
+                const swing = (cell.index % 2 === 0) ? t : 1 - t
+                return -Math.max(1, root.cellSize * 0.08) * swing
+            }
+
             function footDepth(index) {
-                if (cell.animate && root.smoothAnimation) {
+                if (cell.skirtMoves && root.smoothAnimation) {
                     const t = (index % 2) === 0 ? root.smoothPhase : 1 - root.smoothPhase
                     return cell.gFoot * (0.4 + 0.6 * t)
                 }
+                if (!cell.skirtMoves)
+                    return cell.gFoot * 0.7
                 return cell.gFoot * ((index % 2) === cell.skirtPhase ? 1 : 0.4)
             }
 
@@ -875,6 +897,18 @@ PluginComponent {
             Item {
                 anchors.fill: parent
                 visible: cell.kind === "ghost"
+
+                transform: Translate {
+                    y: cell.ghostBob
+
+                    Behavior on y {
+                        enabled: root.animationsOn && !root.smoothAnimation
+                        NumberAnimation {
+                            duration: 240
+                            easing.type: Easing.InOutSine
+                        }
+                    }
+                }
 
                 Shape {
                     anchors.fill: parent

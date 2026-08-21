@@ -57,21 +57,37 @@ PluginSettings {
         maximum: 30
     }
 
+    ToggleSetting {
+        id: autoIconSize
+        settingKey: "autoIconSize"
+        label: "Size icons from the bar"
+        description: "Derives the icon size from the bar's thickness and icon scale - 21px on a standard 48px bar. Turn it off to pin an exact size."
+        defaultValue: true
+    }
+
     SliderSetting {
         settingKey: "iconSizeOverride"
-        label: "Icon size (0 = follow the bar)"
-        description: "0 follows the bar's own icon size, which is usually what you want. Anything else pins the icons to that many pixels."
-        defaultValue: 0
-        minimum: 0
+        label: "Icon size"
+        visible: !autoIconSize.value
+        defaultValue: 21
+        minimum: 10
         maximum: 48
         unit: "px"
     }
 
+    ToggleSetting {
+        id: autoSpacing
+        settingKey: "autoSpacing"
+        label: "Space icons automatically"
+        description: "Derives the gap between icons from their size. Turn it off to set the gap yourself."
+        defaultValue: true
+    }
+
     SliderSetting {
         settingKey: "spacingOverride"
-        label: "Spacing (0 = automatic)"
-        description: "0 derives the gap between icons from their size."
-        defaultValue: 0
+        label: "Spacing"
+        visible: !autoSpacing.value
+        defaultValue: 6
         minimum: 0
         maximum: 24
         unit: "px"
@@ -160,6 +176,23 @@ PluginSettings {
             {
                 "label": "By distance behind you",
                 "value": "distance"
+            }
+        ]
+    }
+
+    SelectionSetting {
+        settingKey: "ghostMotion"
+        label: "Ghost motion"
+        description: "Arcade shuffles the sprite's skirt between two frames, the way the cabinet animates them. Float drifts the whole ghost up and down instead."
+        defaultValue: "arcade"
+        options: [
+            {
+                "label": "Arcade (shuffling skirt)",
+                "value": "arcade"
+            },
+            {
+                "label": "Float (drifting)",
+                "value": "float"
             }
         ]
     }

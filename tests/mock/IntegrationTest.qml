@@ -210,6 +210,7 @@ Rectangle {
         let offBy = [];
         for (let px = 10; px <= 48; px++) {
             widget.pluginData = {
+                "autoIconSize": false,
                 "iconSizeOverride": px,
                 "perMonitor": false
             };

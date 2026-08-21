@@ -59,9 +59,11 @@ git -C ~/.config/DankMaterialShell/plugins/PacmanWorkspaces pull
   workspaces, but never beyond this. Set it equal to the minimum for a fixed
   count. This is also what stops a stray high workspace id (say `100`) from
   turning the bar into a hundred icons.
-- **Icon size** – `0` uses 21px at a 48px bar, scaled by bar thickness and DMS'
-  icon scale. Anything else pins the icons to that many pixels.
-- **Spacing** – `0` derives the gap from the icon size.
+- **Size icons from the bar** – on by default: the icon size comes from the bar's
+  thickness and DMS' icon scale (21px on a standard 48px bar). Turn it off and an
+  **Icon size** slider appears to pin an exact value.
+- **Space icons automatically** – same idea for the gap between icons, with a
+  **Spacing** slider behind it.
 - **Pellet size** – how big an untouched workspace's pellet is, as a percentage
   of the icon size (default 38%, so a reachable-but-unused workspace reads as a
   power pellet rather than a speck). Occupied and urgent slots scale up from it.
@@ -78,6 +80,11 @@ git -C ~/.config/DankMaterialShell/plugins/PacmanWorkspaces pull
 - **Ghosts appear on** – workspaces *behind you* (they chase Pac-Man, the
   default), workspaces *with windows open*, or *every other workspace*.
 - **Ghost colours** – one stable colour per workspace, or by distance behind you.
+- **Ghost motion** – *Arcade* shuffles the sprite's skirt between two frames the
+  way the cabinet animates them, or *Float* drifts the whole ghost up and down.
+- **Frightened ghosts** – off by default. Going back to a lower workspace counts
+  as eating an energizer, so the ghosts turn blue for five seconds and flash
+  white in the last two before recovering.
 
 **Behaviour**
 
@@ -85,6 +92,8 @@ git -C ~/.config/DankMaterialShell/plugins/PacmanWorkspaces pull
   skirts, the blinking energizers and the landing bounce. DMS' global animation
   setting switches these off too, and the clock stops while the widget is hidden
   or the machine is going to sleep.
+- **Animation style** – *Arcade* steps the sprites on a shared frame clock;
+  *Smooth* tweens the same sprites continuously at the display's refresh rate.
 - **Scroll to switch** / **Reverse scroll direction**.
 
 ## Troubleshooting
