@@ -163,7 +163,7 @@ Rectangle {
         height: cellSize
         Rectangle {
             anchors.centerIn: parent
-            width: cell.pellet ? Math.max(5, Math.round(cell.cellSize * 0.6)) : Math.max(3, Math.round(cell.cellSize * (cell.occupied ? 0.4 : 0.26)))
+            width: cell.pellet ? Math.max(6, Math.round(cell.cellSize * 0.646)) : Math.max(4, Math.round(cell.cellSize * (cell.occupied ? 0.513 : 0.38)))
             height: width
             radius: width / 2
             color: cell.tint

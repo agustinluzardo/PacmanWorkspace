@@ -188,6 +188,23 @@ Rectangle {
         widget.stepWorkspace(1);
         expect("scroll forward focuses next slot", HyprlandService.lastFocused, 3);
 
+        // Facing: turns to follow travel, but faces right again at the first slot.
+        setState([1], 1);
+        harness.expect("starts facing right", widget.facingLeft, false);
+        setState([1, 3], 3);
+        harness.expect("moving forward faces right", widget.facingLeft, false);
+        setState([1, 2, 3], 2);
+        harness.expect("moving back faces left", widget.facingLeft, true);
+        setState([1, 2], 1);
+        harness.expect("faces right again at the first slot", widget.facingLeft, false);
+        setState([1, 5], 5);
+        harness.expect("forward again faces right", widget.facingLeft, false);
+        setState([1, 4, 5], 4);
+        harness.expect("back again faces left", widget.facingLeft, true);
+
+        // Icon size must match the original 21px at the reference 48px bar.
+        harness.expect("cell size matches the original at a 48px bar", widget.cellSize, 21);
+
         // Resume from sleep asks for a full compositor refresh.
         const before = Hyprland.refreshWorkspacesCalls;
         SessionService.sessionResumed();

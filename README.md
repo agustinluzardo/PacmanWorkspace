@@ -47,9 +47,12 @@ git -C ~/.config/DankMaterialShell/plugins/PacmanWorkspaces pull
   workspaces, but never beyond this. Set it equal to the minimum for a fixed
   count. This is also what stops a stray high workspace id (say `100`) from
   turning the bar into a hundred icons.
-- **Icon size** – `0` follows the bar's own calibrated icon size, which is
-  usually what you want; it then tracks bar thickness and DMS' icon scale.
+- **Icon size** – `0` uses 21px at a 48px bar, scaled by bar thickness and DMS'
+  icon scale. Anything else pins the icons to that many pixels.
 - **Spacing** – `0` derives the gap from the icon size.
+- **Pellet size** – how big an untouched workspace's pellet is, as a percentage
+  of the icon size (default 38%, so a reachable-but-unused workspace reads as a
+  power pellet rather than a speck). Occupied and urgent slots scale up from it.
 - **Per-monitor workspaces** – each bar shows the workspaces of the monitor it
   lives on. Turn it off to have every bar mirror the focused monitor. (DMS'
   own *Workspaces follow focus* setting also forces the mirrored behaviour.)

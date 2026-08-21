@@ -40,6 +40,13 @@ PluginComponent {
     readonly property bool scrollReversed: root.pluginData?.scrollReversed ?? false
     readonly property int iconSizeOverride: Math.max(0, Math.min(48, root.pluginData?.iconSizeOverride ?? 0))
     readonly property int spacingOverride: Math.max(0, Math.min(24, root.pluginData?.spacingOverride ?? 0))
+    // Diameter of an empty slot's pellet, as a percentage of the icon size. An
+    // untouched-but-reachable workspace reads as a power pellet rather than a
+    // speck; occupied and urgent slots scale up from it and stay distinguishable.
+    readonly property int pelletSizePercent: Math.max(10, Math.min(60, root.pluginData?.pelletSize ?? 38))
+    readonly property real pelletFraction: root.pelletSizePercent / 100
+    readonly property real occupiedPelletFraction: Math.min(0.58, root.pelletFraction * 1.35)
+    readonly property real urgentPelletFraction: Math.min(0.72, root.pelletFraction * 1.7)
 
     // DMS' global "no animations" setting collapses every duration to 0; honour it.
     readonly property bool animationsOn: root.animationsEnabled && Theme.shortDuration > 0
@@ -50,8 +57,18 @@ PluginComponent {
     // Follows the bar's calibrated icon size (and its thickness / icon-scale
     // settings) instead of a hardcoded pixel count, and is snapped to whole
     // device pixels so nothing lands on a half pixel under fractional scaling.
+    // 21px at the reference 48px bar - the size the Canvas version used, which is
+    // what this is calibrated to. Theme.barIconSize(48, -4) would give 20 instead
+    // (Theme.iconSize is 24), so the bar's icon metric is scaled rather than used
+    // directly. Still tracks bar thickness and the bar's icon-scale setting, and
+    // is snapped to whole device pixels so nothing lands on a half pixel under
+    // fractional scaling.
+    readonly property real referenceCellSize: 21
     readonly property int cellSize: {
-        const base = root.iconSizeOverride > 0 ? root.iconSizeOverride : Math.max(12, root.iconSize)
+        if (root.iconSizeOverride > 0)
+            return Math.max(10, Math.round(Theme.snap(root.iconSizeOverride, root.dpr)))
+        const scale = root.barConfig?.iconScale ?? 1
+        const base = (root.barThickness / 48) * root.referenceCellSize * scale
         return Math.max(10, Math.round(Theme.snap(base, root.dpr)))
     }
     readonly property real cellSpacing: {
@@ -303,12 +320,18 @@ PluginComponent {
         return (i >= 0 && i < s.length) ? s[i] : root.fallbackSlot
     }
 
-    // Pac-Man turns to face the direction you just travelled in.
+    // Pac-Man turns to face the direction you just travelled in - except on the
+    // first slot, where there is nothing further left to eat, so he turns back
+    // around against the wall.
     property int previousFocusedId: -1
     property bool facingLeft: false
 
     onFocusedWorkspaceIdChanged: {
-        if (root.previousFocusedId > 0 && root.focusedWorkspaceId !== root.previousFocusedId)
+        const slots = root.wsSlots
+        const firstNum = slots.length > 0 ? slots[0].num : 1
+        if (root.focusedWorkspaceId <= firstNum)
+            root.facingLeft = false
+        else if (root.previousFocusedId > 0 && root.focusedWorkspaceId !== root.previousFocusedId)
             root.facingLeft = root.focusedWorkspaceId < root.previousFocusedId
         root.previousFocusedId = root.focusedWorkspaceId
     }
@@ -879,8 +902,8 @@ PluginComponent {
                 visible: cell.kind === "pellet" || cell.kind === "dot"
                 width: {
                     if (cell.kind === "pellet")
-                        return Math.max(5, Math.round(root.cellSize * 0.6))
-                    return Math.max(3, Math.round(root.cellSize * (cell.isOccupied ? 0.4 : 0.26)))
+                        return Math.max(6, Math.round(root.cellSize * root.urgentPelletFraction))
+                    return Math.max(4, Math.round(root.cellSize * (cell.isOccupied ? root.occupiedPelletFraction : root.pelletFraction)))
                 }
                 height: width
                 radius: width / 2
