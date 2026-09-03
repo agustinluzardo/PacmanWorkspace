@@ -36,17 +36,30 @@ done
 if [ ! -x "$build/render" ] || [ "$here/render.cpp" -nt "$build/render" ]; then
     echo "==> building offscreen renderer"
     g++ -fPIC -O1 -o "$build/render" "$here/render.cpp" \
-        $(pkg-config --cflags --libs Qt6Quick Qt6Qml Qt6Gui Qt6Core) || {
+        $(pkg-config --cflags --libs Qt6Quick Qt6Qml Qt6Gui Qt6Core Qt6Test) || {
         echo "!! could not build the renderer - is qt6-base-dev / qt6-declarative-dev installed?"
         exit 1
     }
 fi
 
-# The real widget asks for Shape.CurveRenderer, which only exists in Qt >= 6.6.
-# Strip it for the local run so the suite also works on older Qt; it changes how
-# the shapes are rasterised, never their geometry or any of the logic under test.
-sed '/preferredRendererType: Shape.CurveRenderer/d' \
-    "$plugin/PacmanWorkspaces.qml" > "$mock/PacmanWorkspacesUT.qml"
+# Shape.preferredRendererType only exists on Qt >= 6.6, so on older Qt it has to come
+# out or the file will not load. That is not free: a whole class of bug lives
+# only in that renderer - a ghost keeping its old colour when its fill changed
+# but its geometry did not - so a suite that always strips it cannot see them.
+# Keep it wherever the Qt in use supports it, and say which path ran.
+qtver="$(pkg-config --modversion Qt6Quick 2>/dev/null || echo 0)"
+qtmajor="${qtver%%.*}"
+qtminor="$(echo "$qtver" | cut -d. -f2)"
+if [ "${qtmajor:-0}" -gt 6 ] || { [ "${qtmajor:-0}" -eq 6 ] && [ "${qtminor:-0}" -ge 6 ]; }; then
+    cp "$plugin/PacmanWorkspaces.qml" "$mock/PacmanWorkspacesUT.qml"
+    echo "==> Qt $qtver: testing against the real Shape renderers"
+else
+    # The whole property is Qt 6.6+, not just the CurveRenderer value.
+    sed '/preferredRendererType:/d' \
+        "$plugin/PacmanWorkspaces.qml" > "$mock/PacmanWorkspacesUT.qml"
+    echo "==> Qt $qtver: too old for Shape.CurveRenderer, stripped for this run"
+    echo "    (CurveRenderer-only rendering bugs cannot be caught here)"
+fi
 cp "$plugin/PacmanWorkspacesSettings.qml" "$mock/PacmanWorkspacesSettingsUT.qml"
 
 export QT_QPA_PLATFORM=offscreen
@@ -76,28 +89,39 @@ run_case integration  IntegrationTest.qml  6000
 run_case frightened   FrightenedTest.qml   15000
 
 # ------------------------------------------------------------- repaint -------
-# The only check here that looks at pixels. Everything else can pass while the
-# screen still shows the old colour, because the bug being guarded is a Shape
-# that does not repaint when only its fill changes.
+# The only checks that look at pixels. Everything else passes while the screen
+# still shows the old colour, which is the exact shape of the bug being guarded:
+# the ghost under the pointer keeping its own colour when frightened mode
+# arrives. The pointer is parked on slot 0 for real, because the offscreen
+# pointer sits at 0,0 by default and would otherwise hover it by accident.
 echo
 echo "==> repaint"
-probe_at() {
-    ( cd "$mock" && PROBE="10,16" "$build/render" RepaintTest.qml "$build/repaint-$1.png" "$1" 2>&1 ) \
-        | grep "^PIXEL" | awk '{print $NF}'
+probe() {   # probe <grabMs> <hoverSpec>
+    ( cd "$mock" && PROBE="10,16;31,16" HOVER="$2" "$build/render" RepaintTest.qml \
+        "$build/repaint-$1.png" "$1" 2>&1 ) | grep "^PIXEL" | awk '{print $NF}' | tr '\n' ' '
 }
-before="$(probe_at 300)"
-after="$(probe_at 900)"
-echo "   ghost pixel before the effect arms: $before"
-echo "   ghost pixel after  the effect arms: $after"
-# Red channel dominant before, blue channel dominant after.
-r_before=$((16#${before:1:2})); b_before=$((16#${before:5:2}))
-r_after=$((16#${after:1:2}));   b_after=$((16#${after:5:2}))
-if [ "$r_before" -gt "$b_before" ] && [ "$b_after" -gt "$r_after" ]; then
-    echo "   the ghost really repaints from its own colour to frightened blue"
-else
-    echo "!! FAIL the ghost did not repaint: $before -> $after"
-    failed=1
-fi
+dominant_red() { [ "$((16#${1:1:2}))" -gt "$((16#${1:5:2}))" ]; }
+dominant_blue() { [ "$((16#${1:5:2}))" -gt "$((16#${1:1:2}))" ]; }
+
+check_pair() {   # check_pair <label> <hoverSpec>
+    local label="$1" hov="$2"
+    local before after b0 a0 a1
+    before="$(probe 300 "$hov")"
+    after="$(probe 900 "$hov")"
+    b0="${before%% *}"
+    a0="${after%% *}"
+    a1="$(echo "$after" | awk '{print $2}')"
+    echo "   $label: slot0 $b0 -> $a0   (slot1 $a1)"
+    if dominant_red "$b0" && dominant_blue "$a0" && dominant_blue "$a1"; then
+        echo "      both ghosts turn frightened blue"
+    else
+        echo "!! FAIL $label: expected slot0 red then blue, and slot1 blue"
+        failed=1
+    fi
+}
+
+check_pair "pointer away  " "200,50@300"
+check_pair "pointer on slot 0" "10,10@300"
 
 # ----------------------------------------------------------------- lint ------
 if [ -n "$qtbin" ]; then

@@ -2,7 +2,7 @@
   "id": "pacmanWorkspaces",
   "name": "Pac-Man Workspaces",
   "description": "Pac-Man style workspace indicator: Pac-Man on the workspace you are on, ghosts on the others, pellets on untouched ones, and a flashing power pellet when a workspace goes urgent.",
-  "version": "2.2.1",
+  "version": "2.3.0",
   "author": "r2titan",
   "type": "widget",
   "capabilities": ["dankbar-widget", "workspaces"],

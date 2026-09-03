@@ -10,6 +10,7 @@
 #include <QCoreApplication>
 #include <QStringList>
 #include <QProcessEnvironment>
+#include <QTest>
 
 int main(int argc, char **argv) {
     QGuiApplication app(argc, argv);
@@ -27,6 +28,29 @@ int main(int argc, char **argv) {
         return 1;
     }
     view.show();
+    // Hover delivery needs an exposed window; without this the synthetic move is
+    // accepted and then dropped.
+    if (!QTest::qWaitForWindowExposed(&view, 2000))
+        qWarning() << "window never exposed - hover injection will not work";
+
+    // HOVER="x,y@ms" parks the pointer on a sprite. QTest::mouseMove goes in at
+    // the platform layer, which is what Qt Quick turns into the hover events a
+    // MouseArea reads; sending a QMouseEvent straight to the window does not
+    // reach it offscreen.
+    const QString hover = QProcessEnvironment::systemEnvironment().value("HOVER");
+    if (!hover.isEmpty()) {
+        const QStringList parts = hover.split(QLatin1Char('@'));
+        const QStringList xy = parts[0].split(QLatin1Char(','));
+        if (xy.size() == 2) {
+            const int hx = xy[0].trimmed().toInt();
+            const int hy = xy[1].trimmed().toInt();
+            const int at = parts.size() > 1 ? parts[1].toInt() : 100;
+            QTimer::singleShot(at, [&view, hx, hy]() {
+                QTest::mouseMove(&view, QPoint(hx, hy));
+                qInfo().noquote() << "HOVER at" << hx << hy;
+            });
+        }
+    }
 
     int rc = 0;
     QTimer::singleShot(argc > 3 ? QString::fromLocal8Bit(argv[3]).toInt() : 1200, [&]() {

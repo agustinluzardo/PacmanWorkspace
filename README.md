@@ -176,19 +176,29 @@ DMS, so it is harmless to leave in place after installing.
   so spinning the wheel quickly moved one workspace and lost the rest. The
   cooldown is gone; a step now measures from the workspace it is on its way to,
   so every notch lands and each one continues from the last.
-- **Ghosts could disagree about frightened mode**, one staying red while its
-  neighbour turned blue. Two causes: the effect was torn down whenever the ghost
-  count hit zero, including the transient zero that happens part-way through a
-  slot-list rebuild — that check is now deferred to the next turn, so only a
-  settled zero counts. And a `Shape` rebuilds its geometry when the path
-  changes, which a `fillColor` swap is not; a ghost standing still had nothing
-  to force a repaint when the colour changed, so a few hundredths of a pixel of
-  its radius are now tied to a counter that advances every time the tint moves.
-  Keying that to the frightened flag alone was not enough: hovering a ghost
-  lightens its tint without changing any state flag, so the ghost under the
-  pointer kept its colour when the effect arrived. The suite now renders the
-  widget and reads the ghost's actual pixel before and after, since every other
-  check can pass while the screen still shows the old colour.
+- **Ghosts could disagree about frightened mode**, and the one under the mouse
+  pointer kept its own colour when the effect arrived. Two separate things:
+  the effect was torn down whenever the ghost count hit zero, including the
+  transient zero that happens part-way through a slot-list rebuild, so that
+  check is now deferred to the next turn and only a settled zero counts. And
+  the ghost is now drawn with `Shape.GeometryRenderer` rather than the
+  `CurveRenderer` every other sprite uses: under CurveRenderer a shape whose
+  fill changed while its geometry stood still could keep the old colour on
+  screen, and a still ghost is exactly that. At this size the two renderers are
+  indistinguishable — the only curve in a ghost is the dome across its head.
+
+  Finding it took two wrong turns worth recording. The first fix nudged the
+  ghost's radius by a hundredth of a pixel so the path would rebuild; it was
+  keyed to the frightened flag, which misses the case that actually gets hit,
+  since hovering changes the tint without changing any flag. The second keyed
+  the same nudge to the tint itself, and did not work either — which is what
+  finally ruled out geometry as the mechanism. Both are gone.
+
+  The reason none of this showed up locally: `tests/run.sh` stripped
+  `preferredRendererType` so the suite would run on Qt 6.4, which meant it had
+  never once exercised the renderer the plugin actually asks for. It now keeps
+  the property wherever Qt supports it and says out loud which path ran.
+
 
 ## Notes on the 2.0 rewrite
 

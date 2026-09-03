@@ -867,23 +867,7 @@ PluginComponent {
 
             // -- Ghost geometry --------------------------------------------
             readonly property real gMargin: Math.max(1, root.cellSize * 0.07)
-            // A Shape rebuilds its geometry when the path changes; a fillColor
-            // swap on its own is not geometry, so a ghost standing still has
-            // nothing forcing a repaint when only its colour moves - which is
-            // how one ghost could stay red while its neighbour turned blue.
-            //
-            // The nudge is driven by the tint changing rather than by a list of
-            // state flags. An earlier version keyed it to `frightened` alone and
-            // missed the case that actually gets hit: the pointer moving onto a
-            // ghost that is already blue changes the tint (hover lightens it)
-            // without changing any of those flags. A counter cannot collide the
-            // way a value derived from the colour could, so every change lands
-            // on a different radius - by at most seven hundredths of a pixel.
-            property int tintEpoch: 0
-
-            onGhostTintChanged: cell.tintEpoch = (cell.tintEpoch + 1) % 8
-
-            readonly property real gR: root.cellSize / 2 - cell.gMargin + cell.tintEpoch * 0.01
+            readonly property real gR: root.cellSize / 2 - cell.gMargin
             readonly property real gDomeY: cell.gMargin + cell.gR
             readonly property real gFoot: cell.gR * 0.32
             readonly property real gBaseY: root.cellSize - cell.gMargin - cell.gFoot
@@ -993,7 +977,15 @@ PluginComponent {
 
                 Shape {
                     anchors.fill: parent
-                    preferredRendererType: Shape.CurveRenderer
+                    // Deliberately NOT the curve renderer, which every other
+                    // shape here uses. Under CurveRenderer a ghost whose fill
+                    // changed while its geometry stood still could keep the old
+                    // colour on screen - the ghost under the pointer stayed its
+                    // own colour when frightened mode arrived. The geometry
+                    // renderer repaints it correctly; at this size the two are
+                    // indistinguishable, since the only curve in a ghost is the
+                    // dome across its head.
+                    preferredRendererType: Shape.GeometryRenderer
 
                     ShapePath {
                         fillColor: cell.ghostTint

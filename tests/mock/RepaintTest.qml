@@ -34,17 +34,42 @@ Rectangle {
         Hyprland.focusedWorkspace = { "id": focused };
     }
 
-    // Start on ws3 so slots 1 and 2 are ghosts.
-    Component.onCompleted: setFocus([1, 2, 3, 4], 3)
+    // The focus has to settle before the move back, or the two changes coalesce
+    // into one and nothing has moved backwards at all.
+    Timer {
+        interval: 150
+        running: true
+        onTriggered: harness.setFocus([1, 2, 3, 4], 4)
+    }
 
-    // Ghost starts in its own colour, then the effect arms.
+    // Reports whether the pointer actually reached a cell, so a test that thinks
+    // it is exercising hover cannot quietly be exercising nothing.
+    function hoveredCells(node, out) {
+        for (let i = 0; i < node.children.length; i++) {
+            const c = node.children[i];
+            if (c.hovered === true)
+                out.push(c.index);
+            harness.hoveredCells(c, out);
+        }
+        return out;
+    }
+
+    Timer {
+        interval: 800
+        running: true
+        onTriggered: console.log("hovered cells:", JSON.stringify(harness.hoveredCells(widget, [])))
+    }
+
     Timer {
         interval: 500
         running: true
         onTriggered: {
-            harness.setFocus([1, 2, 3, 4], 2);   // moved back -> frightened
-            console.log("frightened =", widget.frightened,
-                        " cellSize =", widget.cellSize);
+            harness.setFocus([1, 2, 3, 4], 3);   // moved back -> frightened, slots 0,1 are ghosts
+            console.log("frightenedEnabled =", widget.frightenedEnabled,
+                        " previousFocusedId =", widget.previousFocusedId,
+                        " focusedWorkspaceId =", widget.focusedWorkspaceId,
+                        " frightened =", widget.frightened,
+                        " ghosts =", widget.visibleGhostCount);
         }
     }
 }
