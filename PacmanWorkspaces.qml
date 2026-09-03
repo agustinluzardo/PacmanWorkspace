@@ -868,12 +868,22 @@ PluginComponent {
             // -- Ghost geometry --------------------------------------------
             readonly property real gMargin: Math.max(1, root.cellSize * 0.07)
             // A Shape rebuilds its geometry when the path changes; a fillColor
-            // swap on its own is not geometry. Ghosts standing still therefore
-            // had nothing to force a repaint when frightened mode came or went,
-            // which is how one ghost could stay red while its neighbour turned
-            // blue. Tying a hundredth of a pixel of the radius to the state
-            // guarantees the path is rebuilt whenever the colour changes.
-            readonly property real gR: root.cellSize / 2 - cell.gMargin + (root.frightened ? 0.01 : 0) + (root.frightenedWhite ? 0.01 : 0)
+            // swap on its own is not geometry, so a ghost standing still has
+            // nothing forcing a repaint when only its colour moves - which is
+            // how one ghost could stay red while its neighbour turned blue.
+            //
+            // The nudge is driven by the tint changing rather than by a list of
+            // state flags. An earlier version keyed it to `frightened` alone and
+            // missed the case that actually gets hit: the pointer moving onto a
+            // ghost that is already blue changes the tint (hover lightens it)
+            // without changing any of those flags. A counter cannot collide the
+            // way a value derived from the colour could, so every change lands
+            // on a different radius - by at most seven hundredths of a pixel.
+            property int tintEpoch: 0
+
+            onGhostTintChanged: cell.tintEpoch = (cell.tintEpoch + 1) % 8
+
+            readonly property real gR: root.cellSize / 2 - cell.gMargin + cell.tintEpoch * 0.01
             readonly property real gDomeY: cell.gMargin + cell.gR
             readonly property real gFoot: cell.gR * 0.32
             readonly property real gBaseY: root.cellSize - cell.gMargin - cell.gFoot

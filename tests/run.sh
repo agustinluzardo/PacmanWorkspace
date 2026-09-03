@@ -75,6 +75,30 @@ run_case settings     SettingsTest.qml     1500
 run_case integration  IntegrationTest.qml  6000
 run_case frightened   FrightenedTest.qml   15000
 
+# ------------------------------------------------------------- repaint -------
+# The only check here that looks at pixels. Everything else can pass while the
+# screen still shows the old colour, because the bug being guarded is a Shape
+# that does not repaint when only its fill changes.
+echo
+echo "==> repaint"
+probe_at() {
+    ( cd "$mock" && PROBE="10,16" "$build/render" RepaintTest.qml "$build/repaint-$1.png" "$1" 2>&1 ) \
+        | grep "^PIXEL" | awk '{print $NF}'
+}
+before="$(probe_at 300)"
+after="$(probe_at 900)"
+echo "   ghost pixel before the effect arms: $before"
+echo "   ghost pixel after  the effect arms: $after"
+# Red channel dominant before, blue channel dominant after.
+r_before=$((16#${before:1:2})); b_before=$((16#${before:5:2}))
+r_after=$((16#${after:1:2}));   b_after=$((16#${after:5:2}))
+if [ "$r_before" -gt "$b_before" ] && [ "$b_after" -gt "$r_after" ]; then
+    echo "   the ghost really repaints from its own colour to frightened blue"
+else
+    echo "!! FAIL the ghost did not repaint: $before -> $after"
+    failed=1
+fi
+
 # ----------------------------------------------------------------- lint ------
 if [ -n "$qtbin" ]; then
     echo

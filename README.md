@@ -182,8 +182,13 @@ DMS, so it is harmless to leave in place after installing.
   slot-list rebuild — that check is now deferred to the next turn, so only a
   settled zero counts. And a `Shape` rebuilds its geometry when the path
   changes, which a `fillColor` swap is not; a ghost standing still had nothing
-  to force a repaint when the colour changed, so a hundredth of a pixel of its
-  radius is now tied to the frightened state.
+  to force a repaint when the colour changed, so a few hundredths of a pixel of
+  its radius are now tied to a counter that advances every time the tint moves.
+  Keying that to the frightened flag alone was not enough: hovering a ghost
+  lightens its tint without changing any state flag, so the ghost under the
+  pointer kept its colour when the effect arrived. The suite now renders the
+  widget and reads the ghost's actual pixel before and after, since every other
+  check can pass while the screen still shows the old colour.
 
 ## Notes on the 2.0 rewrite
 
