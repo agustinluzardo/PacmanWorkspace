@@ -70,6 +70,7 @@ run_case() {
 run_case slots        SlotTest.qml         1200
 run_case delegates    DelegateTest.qml     1200
 run_case shapes       ShapeHarness.qml     1200
+run_case scroll       ScrollTest.qml       1200
 run_case settings     SettingsTest.qml     1500
 run_case integration  IntegrationTest.qml  6000
 run_case frightened   FrightenedTest.qml   15000

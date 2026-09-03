@@ -182,6 +182,14 @@ PluginComponent {
     // shows up already blue and part-spent. End it instead.
     onVisibleGhostCountChanged: {
         if (root.visibleGhostCount === 0)
+            Qt.callLater(root.clearFrightenedIfStillEmpty)
+    }
+
+    // Deferred on purpose. Switching workspace rebuilds the whole slot list, and
+    // the ghost count can pass through zero part-way through that rebuild.
+    // Acting on that transient tore the effect down a frame after arming it.
+    function clearFrightenedIfStillEmpty() {
+        if (root.visibleGhostCount === 0)
             root.clearFrightened()
     }
 
@@ -547,26 +555,42 @@ PluginComponent {
         HyprlandService.focusWorkspace(slot.key ?? slot.num)
     }
 
-    property bool scrollCoolingDown: false
+    // Where the last step sent us, until the compositor confirms it. Two
+    // notches in quick succession both used to be measured from the same
+    // not-yet-updated focus, and the rate limiter that hid that problem dropped
+    // the second notch outright - after the wheel accumulator had already
+    // debited it - so a quick spin moved one workspace and the rest vanished.
+    // Stepping from where we are heading instead means every notch counts.
+    property int pendingFocusNum: 0
 
     Timer {
-        id: scrollCooldownTimer
-        interval: 160
-        onTriggered: root.scrollCoolingDown = false
+        id: pendingFocusTimer
+        // Only a safety net: if the compositor never confirms the move, stop
+        // stepping from a workspace we never actually reached.
+        interval: 600
+        onTriggered: root.pendingFocusNum = 0
     }
 
     function stepWorkspace(delta) {
-        if (root.scrollCoolingDown)
-            return
         const s = root.wsSlots
         if (s.length === 0)
             return
 
         let idx = -1
-        for (let i = 0; i < s.length; i++) {
-            if (s[i].focused) {
-                idx = i
-                break
+        if (root.pendingFocusNum > 0) {
+            for (let i = 0; i < s.length; i++) {
+                if (s[i].num === root.pendingFocusNum) {
+                    idx = i
+                    break
+                }
+            }
+        }
+        if (idx < 0) {
+            for (let i = 0; i < s.length; i++) {
+                if (s[i].focused) {
+                    idx = i
+                    break
+                }
             }
         }
         if (idx < 0)
@@ -576,8 +600,8 @@ PluginComponent {
         if (next < 0 || next >= s.length)
             return
 
-        root.scrollCoolingDown = true
-        scrollCooldownTimer.restart()
+        root.pendingFocusNum = s[next].num
+        pendingFocusTimer.restart()
         root.switchTo(s[next])
     }
 
@@ -843,7 +867,13 @@ PluginComponent {
 
             // -- Ghost geometry --------------------------------------------
             readonly property real gMargin: Math.max(1, root.cellSize * 0.07)
-            readonly property real gR: root.cellSize / 2 - cell.gMargin
+            // A Shape rebuilds its geometry when the path changes; a fillColor
+            // swap on its own is not geometry. Ghosts standing still therefore
+            // had nothing to force a repaint when frightened mode came or went,
+            // which is how one ghost could stay red while its neighbour turned
+            // blue. Tying a hundredth of a pixel of the radius to the state
+            // guarantees the path is rebuilt whenever the colour changes.
+            readonly property real gR: root.cellSize / 2 - cell.gMargin + (root.frightened ? 0.01 : 0) + (root.frightenedWhite ? 0.01 : 0)
             readonly property real gDomeY: cell.gMargin + cell.gR
             readonly property real gFoot: cell.gR * 0.32
             readonly property real gBaseY: root.cellSize - cell.gMargin - cell.gFoot

@@ -116,7 +116,22 @@ Rectangle {
             "run": () => {
                 harness.setFocus([1, 2, 3], 1); // back again -> nothing behind you
                 harness.expect("t=7.6  no ghosts left on screen", widget.visibleGhostCount, 0);
-                harness.expect("t=7.6  effect ends with nothing to frighten", widget.frightened, false);
+                // Deliberately not checked in the same turn: the teardown is
+                // deferred so a count that only passes through zero while the
+                // slot list rebuilds cannot kill a freshly armed effect. What
+                // matters is that it does end, which the next step asserts.
+                harness.expect("t=7.6  the guard leaves it alone while ghosts remain",
+                    (function () {
+                        const before = widget.frightened;
+                        widget.visibleGhostCount;
+                        return before;
+                    })(), true);
+            }
+        },
+        {
+            "at": 7650,
+            "run": () => {
+                harness.expect("t=7.65 effect ends with nothing to frighten", widget.frightened, false);
             }
         },
         {

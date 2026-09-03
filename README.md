@@ -168,6 +168,23 @@ rendering, settings construction, and 16 integration checks. See
 [`tests/README.md`](tests/README.md). The `tests/` directory is never scanned by
 DMS, so it is harmless to leave in place after installing.
 
+## Fixes in 2.2
+
+- **The scroll wheel dropped notches.** A 160ms cooldown guarded `stepWorkspace`
+  against two steps being measured from the same not-yet-updated focus — but it
+  dropped the second notch *after* the wheel accumulator had already debited it,
+  so spinning the wheel quickly moved one workspace and lost the rest. The
+  cooldown is gone; a step now measures from the workspace it is on its way to,
+  so every notch lands and each one continues from the last.
+- **Ghosts could disagree about frightened mode**, one staying red while its
+  neighbour turned blue. Two causes: the effect was torn down whenever the ghost
+  count hit zero, including the transient zero that happens part-way through a
+  slot-list rebuild — that check is now deferred to the next turn, so only a
+  settled zero counts. And a `Shape` rebuilds its geometry when the path
+  changes, which a `fillColor` swap is not; a ghost standing still had nothing
+  to force a repaint when the colour changed, so a hundredth of a pixel of its
+  radius is now tied to the frightened state.
+
 ## Notes on the 2.0 rewrite
 
 Version 1 drew every icon into a `Canvas`. Three bugs came out of that, plus a
