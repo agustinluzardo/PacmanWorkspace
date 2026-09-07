@@ -275,6 +275,8 @@ PluginSettings {
     }
 
     SelectionSetting {
+        id: bgColorMode
+
         settingKey: "slotBackgroundColorMode"
         label: "Strip background colour"
         description: "Automatic is the colour the background already draws: the cabinet blue on the Arcade palette, your theme's accent on Adaptive. Custom overrides only the corridor or rails - the ghosts and Pac-Man keep the palette."
@@ -292,10 +294,30 @@ PluginSettings {
     }
 
     ColorSetting {
+        id: bgCustomColour
+
         settingKey: "slotBackgroundColor"
         label: "Custom background colour"
-        description: "Used when the above is set to Custom. The default is the 1980 cabinet's maze blue."
+        description: "The colour the corridor or rails are drawn in."
         defaultValue: "#2121DE"
+
+        // Only shown while it can do anything. Left on screen under Automatic
+        // it invites a pick that the widget then ignores, and the swatch goes
+        // on showing that dead colour.
+        visible: bgColorMode.value === "custom"
+    }
+
+    // Leaving Custom puts the stored colour back to the cabinet blue, so the
+    // swatch agrees with what is actually drawn. Without this the picker kept
+    // showing the old custom colour after switching to Automatic - the widget
+    // was right and the settings page was lying about it.
+    Connections {
+        target: bgColorMode
+
+        function onValueChanged() {
+            if (bgColorMode.value !== "custom")
+                bgCustomColour.value = bgCustomColour.defaultValue;
+        }
     }
 
     ToggleSetting {

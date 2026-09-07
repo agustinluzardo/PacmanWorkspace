@@ -93,6 +93,7 @@ run_case mouth        MouthRender.qml      1200 0
 # differ ONLY by that setting, so the pixel counts have to differ too.
 echo "   -- with vs without the mouth pellet"
 python3 "$here/pixels.py" "$build/mouth.png" | sed 's/^/   /' || failed=1
+run_case colormode    ColorModeTest.qml    1200
 run_case settings     SettingsTest.qml     1500 2
 
 # The page reports the keys it actually built; the source says which ones it

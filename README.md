@@ -216,7 +216,12 @@ the pellets. Four values:
 The rails' thickness comes from `cellSize` rather than a fixed number, so it
 follows when you change the icon size.
 
-**Strip background colour** picks what the corridor or rails are drawn in.
+**Strip background colour** picks what the corridor or rails are drawn in. The
+colour swatch only appears while the mode is Custom — left on screen under
+Automatic it invites a pick the widget then ignores. Leaving Custom also puts
+the stored colour back to the cabinet blue, so the swatch agrees with what is
+actually drawn; before that it kept showing the old pick, which meant the widget
+was right and the settings page was lying about it.
 `Automatic` is exactly the colour the widget already used — cabinet blue on the
 Arcade palette, your theme's accent on Adaptive — so switching the background on
 can never quietly restyle anything. `Custom` overrides **only** the background;
@@ -284,6 +289,12 @@ of those rules breaks between one and three of them.
 and every new setting then broke it for the wrong reason. The page now reports
 the keys it actually built and `run.sh` compares them against the source, which
 is the only place that can say what should have been built.
+
+A `colormode` suite covers that: 10 checks over the swatch's visibility and the
+round trip out of Custom and back. Writing it turned up a hole in its own guard
+— an early return when the page failed to build printed a short summary instead
+of a failure, which is the same "a suite that asserts nothing looks fine"
+problem in miniature. It counts as a failure now.
 
 A `mouth` render draws Pac-Man still, with and without the pellet, and counts
 the pixels: the two halves differ only by that setting, so a property reading
