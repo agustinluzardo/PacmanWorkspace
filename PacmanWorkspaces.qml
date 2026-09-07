@@ -103,6 +103,32 @@ PluginComponent {
     // "theme"   - Material You colours from DMS, for bars where pure arcade
     //             primaries are too loud
     readonly property string palette: root.pluginData?.palette ?? "arcade"
+
+    // A stretch of maze behind the strip. The WHOLE maze does not fit at this
+    // size - at 36px tall its walls turn into noise and bury the pellets, which
+    // are the information. One corridor does read, because that is the shape
+    // the eye already associates with the game.
+    //
+    // Off by default: the border eats about 6px of height and the sprites
+    // shrink for it. That is a real change, not a free ornament.
+    readonly property string slotBackground: root.pluginData?.slotBackground ?? "none"
+    readonly property bool hasCorridor: root.slotBackground === "corridor" || root.slotBackground === "corridorTint"
+    // The two walls and nothing else. Leaving the ends open makes the strip
+    // read as a length of corridor carrying on past the widget rather than as
+    // a box, and it costs less height than the full corridor because there are
+    // no rounded corners to leave clear.
+    readonly property bool hasRails: root.slotBackground === "rails"
+    readonly property bool hasSlotBackground: root.hasCorridor || root.hasRails
+    // Auto keeps whatever the palette already decided - cabinet blue on the
+    // arcade palette, your theme's accent on the adaptive one - so the default
+    // is the same colour it has always drawn. Custom overrides just this,
+    // without touching the ghosts or Pac-Man.
+    readonly property string slotBackgroundColorMode: root.pluginData?.slotBackgroundColorMode ?? "auto"
+    readonly property color slotBackgroundCustomColor: root.pluginData?.slotBackgroundColor ?? "#2121DE"
+    readonly property color corridorColor: root.slotBackgroundColorMode === "custom"
+        ? root.slotBackgroundCustomColor
+        : (root.arcadePalette ? "#2121DE" : Theme.primary)
+    readonly property real railThickness: Math.max(1, Math.round(root.cellSize / 11))
     readonly property bool arcadePalette: root.palette !== "theme"
 
     readonly property color pacmanColor: root.arcadePalette ? "#FFFF00" : Theme.primary
@@ -181,14 +207,6 @@ PluginComponent {
     // effect burn down invisibly means the next ghost you walk back towards
     // shows up already blue and part-spent. End it instead.
     onVisibleGhostCountChanged: {
-        if (root.visibleGhostCount === 0)
-            Qt.callLater(root.clearFrightenedIfStillEmpty)
-    }
-
-    // Deferred on purpose. Switching workspace rebuilds the whole slot list, and
-    // the ghost count can pass through zero part-way through that rebuild.
-    // Acting on that transient tore the effect down a frame after arming it.
-    function clearFrightenedIfStillEmpty() {
         if (root.visibleGhostCount === 0)
             root.clearFrightened()
     }
@@ -270,6 +288,13 @@ PluginComponent {
     // Mouth aperture per frame: wide, half, closed, half.
     readonly property var mouthFrames: [38, 20, 0, 20]
     readonly property real mouthRestDeg: 30
+
+    // With animations off the mouth freezes open, which reads as waiting rather
+    // than eating. A pellet in the opening is what the arcade frame shows at
+    // that moment - the bite about to happen. On by default because a frozen
+    // open mouth with nothing in it is the poorer of the two, but it is a look,
+    // so it is a choice.
+    readonly property bool mouthPellet: root.pluginData?.mouthPellet ?? true
 
     Timer {
         interval: 130
@@ -977,15 +1002,7 @@ PluginComponent {
 
                 Shape {
                     anchors.fill: parent
-                    // Deliberately NOT the curve renderer, which every other
-                    // shape here uses. Under CurveRenderer a ghost whose fill
-                    // changed while its geometry stood still could keep the old
-                    // colour on screen - the ghost under the pointer stayed its
-                    // own colour when frightened mode arrived. The geometry
-                    // renderer repaints it correctly; at this size the two are
-                    // indistinguishable, since the only curve in a ghost is the
-                    // dome across its head.
-                    preferredRendererType: Shape.GeometryRenderer
+                    preferredRendererType: Shape.CurveRenderer
 
                     ShapePath {
                         fillColor: cell.ghostTint
@@ -1102,6 +1119,29 @@ PluginComponent {
 
             }
 
+            // With animations off the mouth is frozen open, which reads as
+            // waiting rather than eating. A pellet sitting in the opening is
+            // what the arcade frame actually shows at that moment - the bite
+            // about to happen - and it turns a static pose back into a moment.
+            //
+            // Only when the mouth is still: while it is chewing there is a
+            // pellet appearing and vanishing several times a second, which is
+            // noise, not information.
+            Rectangle {
+                id: mouthPellet
+
+                visible: root.mouthPellet && cell.kind === "pacman" && !cell.animate
+                // Inside the wedge, on the side the mouth opens toward.
+                x: cell.cx + (root.facingLeft ? -1 : 1) * cell.pacRestRadius * 0.52 - width / 2
+                y: cell.cy - height / 2
+                width: root.pelletDiameter(root.pelletFraction, 3)
+                height: width
+                radius: width / 2
+                color: cell.shade(root.pelletColor)
+                antialiasing: true
+                z: 1
+            }
+
             MouseArea {
                 id: cellMouse
 
@@ -1157,14 +1197,64 @@ PluginComponent {
     // Repeater behaves - but a regenerated Shape draws correctly on its first
     // frame, unlike the Canvas it replaced.)
     horizontalBarPill: Component {
-        Row {
-            spacing: root.cellSpacing
+        Item {
+            id: pillHost
 
-            WorkspaceWheel {}
+            implicitWidth: pillRow.implicitWidth + (root.hasCorridor ? root.cellSpacing * 2 : 0)
+            implicitHeight: pillRow.implicitHeight
+                + (root.hasCorridor ? 6 : 0)
+                + (root.hasRails ? root.railThickness * 4 : 0)
 
-            Repeater {
-                model: root.slotCount
-                delegate: cellDelegate
+            // Behind the strip, never over it: the sprites have to stay the
+            // thing that reads first.
+            Rectangle {
+                anchors.fill: parent
+                visible: root.hasCorridor
+                radius: height / 2.6
+                color: root.slotBackground === "corridorTint" ? Qt.rgba(0, 0, 0, 0.25) : "transparent"
+                border.color: root.slotBackground === "corridorTint"
+                    ? Qt.rgba(root.corridorColor.r, root.corridorColor.g, root.corridorColor.b, 0.75)
+                    : root.corridorColor
+                border.width: 2
+                z: -1
+            }
+
+            // Rails: two walls and nothing else, behind the strip the same way
+            // the corridor is.
+            Rectangle {
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: root.railThickness
+                radius: height / 2
+                visible: root.hasRails
+                color: root.corridorColor
+                z: -1
+            }
+
+            Rectangle {
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: root.railThickness
+                radius: height / 2
+                visible: root.hasRails
+                color: root.corridorColor
+                z: -1
+            }
+
+            Row {
+                id: pillRow
+
+                anchors.centerIn: parent
+                spacing: root.cellSpacing
+
+                WorkspaceWheel {}
+
+                Repeater {
+                    model: root.slotCount
+                    delegate: cellDelegate
+                }
             }
         }
     }

@@ -168,38 +168,6 @@ rendering, settings construction, and 16 integration checks. See
 [`tests/README.md`](tests/README.md). The `tests/` directory is never scanned by
 DMS, so it is harmless to leave in place after installing.
 
-## Fixes in 2.2
-
-- **The scroll wheel dropped notches.** A 160ms cooldown guarded `stepWorkspace`
-  against two steps being measured from the same not-yet-updated focus — but it
-  dropped the second notch *after* the wheel accumulator had already debited it,
-  so spinning the wheel quickly moved one workspace and lost the rest. The
-  cooldown is gone; a step now measures from the workspace it is on its way to,
-  so every notch lands and each one continues from the last.
-- **Ghosts could disagree about frightened mode**, and the one under the mouse
-  pointer kept its own colour when the effect arrived. Two separate things:
-  the effect was torn down whenever the ghost count hit zero, including the
-  transient zero that happens part-way through a slot-list rebuild, so that
-  check is now deferred to the next turn and only a settled zero counts. And
-  the ghost is now drawn with `Shape.GeometryRenderer` rather than the
-  `CurveRenderer` every other sprite uses: under CurveRenderer a shape whose
-  fill changed while its geometry stood still could keep the old colour on
-  screen, and a still ghost is exactly that. At this size the two renderers are
-  indistinguishable — the only curve in a ghost is the dome across its head.
-
-  Finding it took two wrong turns worth recording. The first fix nudged the
-  ghost's radius by a hundredth of a pixel so the path would rebuild; it was
-  keyed to the frightened flag, which misses the case that actually gets hit,
-  since hovering changes the tint without changing any flag. The second keyed
-  the same nudge to the tint itself, and did not work either — which is what
-  finally ruled out geometry as the mechanism. Both are gone.
-
-  The reason none of this showed up locally: `tests/run.sh` stripped
-  `preferredRendererType` so the suite would run on Qt 6.4, which meant it had
-  never once exercised the renderer the plugin actually asks for. It now keeps
-  the property wherever Qt supports it and says out loud which path ran.
-
-
 ## Notes on the 2.0 rewrite
 
 Version 1 drew every icon into a `Canvas`. Three bugs came out of that, plus a
@@ -231,3 +199,95 @@ few more from how workspace state was read:
 
 The `plugin.json` manifest also gained the `capabilities` field, which the DMS
 plugin schema lists as required.
+
+## 2.4.0 — an optional maze background, a pellet in the mouth, and an audit of the suite
+
+### The corridor
+
+**Strip background** (Settings, off by default) draws a stretch of maze behind
+the pellets. Four values:
+
+- `None` — as before
+- `Corridor outline` — just the blue outline, the panel's own background shows through
+- `Corridor, shaded` — the outline plus a dark veil that gives the sprites contrast
+- `Rails only` — the two walls with the ends left open, so the strip reads as a
+  length of corridor carrying on past the widget rather than as a box
+
+The rails' thickness comes from `cellSize` rather than a fixed number, so it
+follows when you change the icon size.
+
+**Strip background colour** picks what the corridor or rails are drawn in.
+`Automatic` is exactly the colour the widget already used — cabinet blue on the
+Arcade palette, your theme's accent on Adaptive — so switching the background on
+can never quietly restyle anything. `Custom` overrides **only** the background;
+the ghosts and Pac-Man keep the palette, which is what stops a colour pick
+turning into a reskin. That separation is asserted, not assumed.
+
+The **whole** maze was tried and dropped: at 36px tall its walls turn into noise
+and bury the pellets, which are the information. One corridor does read, because
+that is the shape the eye already associates with the game.
+
+Corridor costs about 6px of height; rails cost far less, since they leave the
+ends open. Either shrinks the sprites, which is why this is off by default.
+
+### The pellet in the mouth
+
+With animations off Pac-Man's mouth freezes open, which reads as waiting rather
+than eating. **Pellet in the mouth when still** (on by default) puts a pellet in
+the opening — the bite about to happen, the way the arcade frame does. Turn it
+off to leave the mouth empty.
+
+It deliberately does nothing while animations are on: a dot appearing and
+vanishing several times a second is noise, not information.
+
+### The scroll fix, carried across
+
+This release is built on 2.1.0, which did not have the wheel fix from the 2.2.x
+line. That fix was extracted and applied on its own — the ghost-colour changes
+that shipped alongside it were left behind, since DankMaterialShell 1.6.0 fixed
+that upstream.
+
+The old rate limiter dropped a notch *after* the wheel accumulator had already
+debited it, so a quick spin moved one workspace and lost the rest. Steps now
+measure from the workspace they are heading to. The integration suite spins the
+wheel three notches without letting the compositor confirm any of them, which is
+exactly the window the bug lived in; reverting the fix breaks three of those
+assertions.
+
+### What the audit turned up
+
+Adding the corridor wrapped the pill's `Row` in an `Item`, and **the integration
+test went blank** — correctly, because the structure had changed: its reader
+assumed the cells were direct children of the pill's root. It now walks in
+depth, so it describes what the strip shows rather than how it is nested.
+
+That exposed something larger: **a suite producing no checks at all passed
+without saying anything.** With the reader broken, the run still came out green.
+`run.sh` now requires a floor of checks per suite and prints the count.
+
+With that floor in place, two suites turned out to be assertion-less smoke
+tests:
+
+- **`shapes`** rendered a reference image and asserted nothing. A drawing that
+  came out blank passed just the same. Its pixels are now counted
+  (`tests/pixels.py`, a PNG decoder in plain Python).
+- **`settings`** built the page without checking that the controls existed. It
+  now counts one per option: a setting that fails quietly leaves the page built
+  and one control short.
+
+A new `background` suite covers the four modes and the colour resolution: 16
+checks, including that `Automatic` returns the same colour the palette already
+produced and that a custom pick does not leak onto the sprites. Reverting each
+of those rules breaks between one and three of them.
+
+`SettingsTest` no longer hardcodes how many settings there should be — it did,
+and every new setting then broke it for the wrong reason. The page now reports
+the keys it actually built and `run.sh` compares them against the source, which
+is the only place that can say what should have been built.
+
+A `mouth` render draws Pac-Man still, with and without the pellet, and counts
+the pixels: the two halves differ only by that setting, so a property reading
+"on" is not taken as proof anything reached the screen.
+
+Per-suite counts: slots 16, delegates 8, shapes (pixels), background 22,
+mouth (pixels), settings 2, integration 28, frightened 20.

@@ -260,4 +260,48 @@ PluginSettings {
         description: "Scroll up moves to a higher workspace instead of a lower one."
         defaultValue: false
     }
+
+    SelectionSetting {
+        settingKey: "slotBackground"
+        label: "Strip background"
+        description: "A stretch of maze behind the pellets. The whole maze does not fit at this size - its walls bury the pellets, which are the information - but one corridor reads fine, because that is the shape the eye already knows. Corridor costs about 6px of height; Rails cost far less, since they leave the ends open. Either one shrinks the sprites, which is why this is off by default."
+        defaultValue: "none"
+        options: [
+            { "label": "None", "value": "none" },
+            { "label": "Corridor outline", "value": "corridor" },
+            { "label": "Corridor, shaded", "value": "corridorTint" },
+            { "label": "Rails only", "value": "rails" }
+        ]
+    }
+
+    SelectionSetting {
+        settingKey: "slotBackgroundColorMode"
+        label: "Strip background colour"
+        description: "Automatic is the colour the background already draws: the cabinet blue on the Arcade palette, your theme's accent on Adaptive. Custom overrides only the corridor or rails - the ghosts and Pac-Man keep the palette."
+        defaultValue: "auto"
+        options: [
+            {
+                "label": "Automatic (follows the palette)",
+                "value": "auto"
+            },
+            {
+                "label": "Custom",
+                "value": "custom"
+            }
+        ]
+    }
+
+    ColorSetting {
+        settingKey: "slotBackgroundColor"
+        label: "Custom background colour"
+        description: "Used when the above is set to Custom. The default is the 1980 cabinet's maze blue."
+        defaultValue: "#2121DE"
+    }
+
+    ToggleSetting {
+        settingKey: "mouthPellet"
+        label: "Pellet in the mouth when still"
+        description: "With animations off Pac-Man's mouth freezes open, which reads as waiting rather than eating. This puts a pellet in the opening - the bite about to happen - the way the arcade frame does. Turn it off to leave the mouth empty. Has no effect while animations are on: a dot appearing and vanishing several times a second is noise."
+        defaultValue: true
+    }
 }

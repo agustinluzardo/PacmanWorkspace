@@ -67,15 +67,32 @@ Rectangle {
     }
 
     // ---- readback ---------------------------------------------------------
+    // Walks the pill for the cells wherever they sit, rather than assuming they
+    // are direct children of its root. They stopped being direct children the
+    // moment the corridor background wrapped the row in an Item, and this test
+    // went blank - correctly, because the structure HAD changed. Recursing
+    // makes it describe what the strip shows rather than how it is nested.
+    function collect(node, out) {
+        if (!node || !node.children)
+            return out;
+        for (let i = 0; i < node.children.length; i++) {
+            const c = node.children[i];
+            if (c.kind !== undefined && c.info !== undefined)
+                out.push(c);
+            else
+                harness.collect(c, out);
+        }
+        return out;
+    }
+
     function strip() {
-        const row = widget.pillItem;
-        if (!row)
+        const pill = widget.pillItem;
+        if (!pill)
             return "<no pill>";
+        const cells = harness.collect(pill, []);
         const parts = [];
-        for (let i = 0; i < row.children.length; i++) {
-            const c = row.children[i];
-            if (c.kind === undefined)
-                continue;
+        for (let i = 0; i < cells.length; i++) {
+            const c = cells[i];
             parts.push(c.info.num + ":" + c.kind + (c.info.focused ? "*" : "") + (c.info.occupied ? "+" : ""));
         }
         return parts.join(" ");
@@ -187,6 +204,30 @@ Rectangle {
         setState([1, 2, 3], 2);
         widget.stepWorkspace(1);
         expect("scroll forward focuses next slot", HyprlandService.lastFocused, 3);
+
+        // The bug this guards: a QUICK SPIN. Both notches used to be measured
+        // from the same not-yet-updated focus, and the rate limiter that hid it
+        // dropped the second outright - after the wheel accumulator had already
+        // debited it - so a fast spin moved one workspace and lost the rest.
+        // The compositor is deliberately NOT told about the first move here,
+        // which is exactly the window the bug lived in.
+        setState([1, 2, 3, 4, 5], 1);
+        // The wheel has been idle: nothing is in flight. Without this the
+        // previous scenario's pending target leaks in and the first notch
+        // starts from the wrong place - which is what this assertion caught
+        // when it was written.
+        widget.pendingFocusNum = 0;
+        widget.stepWorkspace(1);
+        expect("a quick spin: first notch", HyprlandService.lastFocused, 2);
+        widget.stepWorkspace(1);
+        expect("second notch does not repeat the first", HyprlandService.lastFocused, 3);
+        widget.stepWorkspace(1);
+        expect("nor does the third", HyprlandService.lastFocused, 4);
+
+        // And spinning back the other way has to unwind from where it is
+        // heading, not from the stale focus either.
+        widget.stepWorkspace(-1);
+        expect("spinning back steps from where it was heading", HyprlandService.lastFocused, 3);
 
         // Facing: turns to follow travel, but faces right again at the first slot.
         setState([1], 1);

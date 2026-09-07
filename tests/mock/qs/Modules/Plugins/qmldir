@@ -4,3 +4,4 @@ PluginSettings 1.0 PluginSettings.qml
 SliderSetting 1.0 SliderSetting.qml
 ToggleSetting 1.0 ToggleSetting.qml
 SelectionSetting 1.0 SelectionSetting.qml
+ColorSetting 1.0 ColorSetting.qml
