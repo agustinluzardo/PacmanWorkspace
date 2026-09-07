@@ -2,6 +2,9 @@
 
 A Pac-Man workspace indicator for [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell).
 
+A non-commercial hobby project, not affiliated with or endorsed by Bandai Namco.
+See [License and trademarks](#license-and-trademarks).
+
 Pac-Man sits on the workspace you are on, chomping and facing whichever way you
 last travelled. Ghosts mark the other workspaces, untouched ones stay as pellets,
 and a workspace that goes urgent flashes as a power pellet.
@@ -302,3 +305,23 @@ the pixels: the two halves differ only by that setting, so a property reading
 
 Per-suite counts: slots 16, delegates 8, shapes (pixels), background 22,
 mouth (pixels), settings 2, integration 28, frightened 20.
+
+## License and trademarks
+
+The **code** in this repository is MIT licensed — see [LICENSE](LICENSE). That
+covers what is written here and nothing else.
+
+It does **not** cover Pac-Man. *Pac-Man*, the ghosts and their names are
+trademarks and copyrighted characters of **Bandai Namco Entertainment Inc.**,
+who have no affiliation with this project and have not endorsed it. Nothing
+here is licensed to you by them, and an MIT notice on the code cannot change
+that — a licence can only grant what its author owns.
+
+No original assets are used. Every sprite is drawn at runtime from QML shapes
+and arcs. That is worth stating plainly and it is *not* a legal defence:
+character copyright covers the design, not just the file it shipped in.
+
+This is a hobby project for a desktop panel. It is not sold, contains no game,
+and is not a substitute for anything Bandai Namco publishes. If you represent
+Bandai Namco and would like it renamed or taken down, open an issue and it will
+be done.
